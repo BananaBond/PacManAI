@@ -1,12 +1,13 @@
 import pygame, random, sys
 from pygame.locals import *
+import glob
 
 # Set FPS
 FPS = 30
 
 # Window Dimensions
-WINDOWWIDTH = 640
-WINDOWHEIGHT = 480
+WINDOWWIDTH = 600
+WINDOWHEIGHT = 825
 WALL_THICKNESS = 10
 PLAYER_SIZE = 30
 PLAYER_VEL = 10
@@ -23,6 +24,39 @@ DOWN = 'down'
 RIGHT = 'right'
 LEFT = 'left'
 wallList = []
+tileMap = """
+WWWWWWWWWWWWWWWWWWWWWWWW
+W                      W
+W                      W
+W                      W
+W                      W
+W                      W
+W                      W
+W                      W
+W                      W
+W                      W
+W                      W
+WWWWWW            WWWWWW
+W    W            W    W
+W    W            W    W
+WWWWWW            WWWWWW
+W                      W   
+W                      W   
+WWWWWW            WWWWWW
+W    W            W    W
+W    W            W    W
+WWWWWW            WWWWWW
+W                      W
+W                      W
+W                      W
+W                      W
+W                      W
+W                      W
+W                      W
+W                      W
+W                      W
+W                      W
+WWWWWWWWWWWWWWWWWWWWWWWW"""
 
 
 class Player(pygame.sprite.Sprite):
@@ -70,7 +104,6 @@ class Player(pygame.sprite.Sprite):
 
         self.input(pressed)
         # Move Player
-        print(self.numKeyPressed)
 
         self.x += self.vx
         self.y += self.vy
@@ -117,6 +150,8 @@ class Enemy(pygame.sprite.Sprite):
         pass
 
 
+
+
 class Wall(pygame.sprite.Sprite):
 
     def __init__(self, x, y, w, h):
@@ -131,8 +166,18 @@ class Wall(pygame.sprite.Sprite):
         self.y = y
 
 
+def DrawWalls(_tileMap):
+    print(len(_tileMap))
+
+    for y, line in enumerate(_tileMap):
+        for x, c in enumerate(line):
+            if c == 'W':
+                wallList.append(Wall(x * 25, y * 25, 25, 25))
+
+
 def main():
-    global FPSCLOCK, DISPLAYSURF, wallList, enemyList, walls
+
+    global FPSCLOCK, DISPLAYSURF, wallList, enemyList, walls, tileMap
     pygame.init()
     random.seed()
 
@@ -149,10 +194,44 @@ def main():
         Enemy(random.randint(0, WINDOWWIDTH - 30), random.randint(0, WINDOWHEIGHT - 430))
     ]
 
-    wallList = [
-        Wall(70, 100, WALL_THICKNESS, 120),
-        Wall(100, 100, 120, WALL_THICKNESS)
-    ]
+    tileMap = tileMap.splitlines()
+    # wallList = [
+    #     # Mid line
+    #     # Wall(0,400, 600, WALL_THICKNESS),
+    #     Wall(290, 0, WALL_THICKNESS, 100),
+    #     Wall(290, 700, WALL_THICKNESS, 100),
+    #     # Boundary
+    #     Wall(0, 0, WALL_THICKNESS, WINDOWHEIGHT),
+    #     Wall(0, 0, WINDOWWIDTH, WALL_THICKNESS),
+    #     Wall(WINDOWWIDTH - WALL_THICKNESS, 0, WALL_THICKNESS, WINDOWHEIGHT),
+    #     Wall(0, WINDOWHEIGHT - WALL_THICKNESS, WINDOWWIDTH, WALL_THICKNESS),
+    #
+    #     # Left portal 1
+    #     Wall(0, 300, 100, WALL_THICKNESS),
+    #     Wall(100, 300, WALL_THICKNESS, 70),
+    #     Wall(0, 360, 100, WALL_THICKNESS),
+    #
+    #     # Left Portal 2
+    #     Wall(0, 140 + 300, 100, WALL_THICKNESS),
+    #     Wall(100, 140 + 300, WALL_THICKNESS, 70),
+    #     Wall(0, 140 + 360, 100, WALL_THICKNESS),
+    #
+    #     # Right portal 1
+    #     Wall(0 + 500, 300, 100, WALL_THICKNESS),
+    #     Wall(100 + 400, 300, WALL_THICKNESS, 70),
+    #     Wall(0 + 500, 360, 100, WALL_THICKNESS),
+    #
+    #     # Right Portal 2
+    #     Wall(0 + 500, 140 + 300, 100, WALL_THICKNESS),
+    #     Wall(100 + 400, 140 + 300, WALL_THICKNESS, 70),
+    #     Wall(0 + 500, 140 + 360, 100, WALL_THICKNESS),
+    #
+    #     # Mid Box
+    #     Wall(240, 365, 110, WALL_THICKNESS),
+    #     Wall(230, 365, WALL_THICKNESS, 80),
+    #     Wall(240, 435, 110, WALL_THICKNESS),
+    #     Wall(350, 365, WALL_THICKNESS, 80)
+    # ]
 
     allsprites = pygame.sprite.Group()
 
@@ -160,6 +239,8 @@ def main():
     allsprites.add(enemyList)
     allsprites.add(wallList)
 
+    DrawWalls(tileMap)
+    print(len(wallList))
     while True:
 
         DISPLAYSURF.fill(WHITE)  # Drawing the window
