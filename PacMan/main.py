@@ -6,10 +6,11 @@ import glob
 FPS = 30
 
 # Window Dimensions
-WINDOWWIDTH = 600
+WINDOWWIDTH = 613
 WINDOWHEIGHT = 825
 WALL_THICKNESS = 10
 PLAYER_SIZE = 30
+TREAT_SIZE = 20
 PLAYER_VEL = 10
 ENEMY_VEL = 5
 # Colors
@@ -17,6 +18,7 @@ BLUE = (0, 0, 255)
 WHITE = (255, 255, 255)
 RED = (255, 0, 0)
 GREEN = (0, 255, 0)
+YELLOW = (255, 255, 0)
 
 # Key Constants
 UP = 'up'
@@ -24,39 +26,59 @@ DOWN = 'down'
 RIGHT = 'right'
 LEFT = 'left'
 wallList = []
+treatList = []
+portalList = []
+
+pygame.font.init()
+STAT_FONT = pygame.font.SysFont("roboto", 30)
+
 tileMap = """
-WWWWWWWWWWWWWWWWWWWWWWWW
-W                      W
-W                      W
-W                      W
-W                      W
-W                      W
-W                      W
-W                      W
-W                      W
-W                      W
-W                      W
-WWWWWW            WWWWWW
-W    W            W    W
-W    W            W    W
-WWWWWW            WWWWWW
-W                      W   
-W                      W   
-WWWWWW            WWWWWW
-W    W            W    W
-W    W            W    W
-WWWWWW            WWWWWW
-W                      W
-W                      W
-W                      W
-W                      W
-W                      W
-W                      W
-W                      W
-W                      W
-W                      W
-W                      W
-WWWWWWWWWWWWWWWWWWWWWWWW"""
+WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
+W                       W                       W
+W    0  0  0  0         W                       W
+W 0                     W                       W
+W                       W                       W
+W 0  WWWWW    WWWWWW    W    WWWWWW    WWWWW    W
+W    W   W              W              W   W    W
+W 0  WWWWW                             WWWWW    W
+W                                               W
+W 0                                             W
+W             W     WWWWWWWWW     W             W
+W 0           W         W         W             W
+W    WWWWW    W         W         W    WWWWW    W
+W 0           W         W         W             W
+W 0           WWWWW     W     WWWWW             W                                              
+W             W                   W             W
+WWWWWWWWWW    W                   W    WWWWWWWWWW
+W        W    W                   W    W        W
+W        W    W                   W    W        W
+W        W        WWWW    WWWW         W        W
+WWWWWWWWWW        W          W         WWWWWWWWWW
+X                 W          W                  X   
+X                 W          W                  X   
+X                 W          W                  X   
+X                 W          W                  X   
+WWWWWWWWWW        W          W         WWWWWWWWWW
+W        W        WWWWWWWWWWWW         W        W
+W        W    W                   W    W        W
+W        W    W                   W    W        W
+WWWWWWWWWW    W                   W    WWWWWWWWWW
+W             W                   W             W
+W             WWWWW     W     WWWWW             W   
+W             W         W         W             W
+W    WWWWW    W         W         W    WWWWW    W
+W             W         W         W             W
+W             W     WWWWWWWWW     W             W
+W                                               W
+W                                               W
+W    WWWWW              W              WWWWW    W
+W    W   W              W              W   W    W
+W    WWWWW    WWWWWW    W    WWWWWW    WWWWW    W
+W                       W                       W
+W                       W                       W
+W                       W                       W
+W                       W                       W
+WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW"""
 
 
 class Player(pygame.sprite.Sprite):
@@ -66,7 +88,7 @@ class Player(pygame.sprite.Sprite):
         pygame.sprite.Sprite.__init__(self)
 
         # Set Properties
-        self.image = pygame.Surface((30, 30))
+        self.image = pygame.Surface((PLAYER_SIZE, PLAYER_SIZE))
         self.image.fill(BLUE)
         self.rect = Rect(x, y, PLAYER_SIZE, PLAYER_SIZE)
         self.width = PLAYER_SIZE
@@ -74,6 +96,7 @@ class Player(pygame.sprite.Sprite):
         self.x = x
         self.y = y
         self.vx = 0
+        self.score = 0
         self.vy = 0
         self.vel = PLAYER_VEL
         self.numKeyPressed = 0
@@ -98,13 +121,23 @@ class Player(pygame.sprite.Sprite):
         elif pressed[K_DOWN]:
             self.vy += self.vel
 
+    def updateScore(self):
+
+        for treat in treatList:
+            if pygame.sprite.collide_rect(self, treat):
+                self.score += 1
+                treatList.remove(treat)
+
     def updatePosition(self, pressed):
 
         self.numKeyPressed = 0
 
         self.input(pressed)
         # Move Player
-
+        if self.x < 0:
+            self.x = WINDOWWIDTH
+        elif self.x > WINDOWWIDTH:
+            self.x = 0
         self.x += self.vx
         self.y += self.vy
         self.rect.x = self.x
@@ -129,13 +162,42 @@ class Player(pygame.sprite.Sprite):
                 self.vy = 0
 
 
+class Treats(pygame.sprite.Sprite):
+
+    def __init__(self, x, y):
+        pygame.sprite.Sprite.__init__(self)
+
+        self.image = pygame.Surface((TREAT_SIZE, TREAT_SIZE))
+        self.image.fill(YELLOW)
+        self.rect = Rect(x, y, TREAT_SIZE, TREAT_SIZE)
+        self.width = TREAT_SIZE
+        self.height = TREAT_SIZE
+        self.x = x
+        self.y = y
+        self.eaten = False
+
+
+class Portal():
+
+    def __init__(self, x, y, w, h):
+        self.image = pygame.Surface((w, h))
+        self.image.fill(RED)
+        self.rect = Rect(x, y, w, h)
+
+        self.x = x
+        self.y = y
+
+    def Draw(self, win):
+        win.blit(self.image, (self.x, self.y))
+
+
 class Enemy(pygame.sprite.Sprite):
 
     def __init__(self, x, y):
         # Call the parent's constructor
         pygame.sprite.Sprite.__init__(self)
 
-        self.image = pygame.Surface((30, 30))
+        self.image = pygame.Surface((PLAYER_SIZE, PLAYER_SIZE))
         self.image.fill(RED)
         self.rect = Rect(x, y, PLAYER_SIZE, PLAYER_SIZE)
         self.width = self.image.get_width()
@@ -148,8 +210,6 @@ class Enemy(pygame.sprite.Sprite):
 
     def move(self, vx, vy):
         pass
-
-
 
 
 class Wall(pygame.sprite.Sprite):
@@ -166,25 +226,59 @@ class Wall(pygame.sprite.Sprite):
         self.y = y
 
 
-def DrawWalls(_tileMap):
-    print(len(_tileMap))
+def MakeTreats(_tileMap):
+    for y, line in enumerate(_tileMap):
+        for x, c in enumerate(line):
+            if c == '0':
+                treatList.append(Treats(x * 12.5, y * 12.5))
+    print(len(treatList))
 
+
+def MakePortals(_tileMap):
+    ind = 0
+    for y, line in enumerate(_tileMap):
+        for x, c in enumerate(line):
+            if c == 'X':
+                if x < 300:
+                    ind = 0
+                    portalList.append(Portal(x * 12.5, y * 12.5, 12.5, 12.5))
+                else:
+                    ind = 1
+                    portalList.append(Portal(x * 12.5, y * 12.5, 12.5, 12.5))
+    print(len(portalList))
+
+
+def MakeWalls(_tileMap):
     for y, line in enumerate(_tileMap):
         for x, c in enumerate(line):
             if c == 'W':
-                wallList.append(Wall(x * 25, y * 25, 25, 25))
+                wallList.append(Wall(x * 12.5, y * 12.5, 12.5, 12.5))
+
+
+def DrawWindow(win, player):
+    for wall in wallList:
+        win.blit(wall.image, (wall.x, wall.y))
+    for treat in treatList:
+        win.blit(treat.image, (treat.x, treat.y))
+    for portal in portalList:
+        portal.Draw(WINDOW)
+    text = STAT_FONT.render("SCORE  " + str(player.score), 1, (255, 0, 0))
+    WINDOW.blit(text, (10, 600))
+    # Render player
+    win.blit(player.image, (player.x, player.y))
+    pygame.display.update()
 
 
 def main():
-
-    global FPSCLOCK, DISPLAYSURF, wallList, enemyList, walls, tileMap
+    global FPSCLOCK, WINDOW, wallList, enemyList, tileMap, treatList
     pygame.init()
     random.seed()
 
     FPSCLOCK = pygame.time.Clock()
-    DISPLAYSURF = pygame.display.set_mode((WINDOWWIDTH, WINDOWHEIGHT))
+
+    WINDOW = pygame.display.set_mode((WINDOWWIDTH, WINDOWHEIGHT))
     pygame.display.set_caption('Lembalo')
-    player = Player(WINDOWWIDTH / 2, WINDOWHEIGHT - 100)
+    player = Player(40, 40)
 
     enemyList = [
         Enemy(random.randint(0, WINDOWWIDTH - 30), random.randint(0, WINDOWHEIGHT - 430)),
@@ -233,45 +327,25 @@ def main():
     #     Wall(350, 365, WALL_THICKNESS, 80)
     # ]
 
-    allsprites = pygame.sprite.Group()
-
-    allsprites.add(player)
-    allsprites.add(enemyList)
-    allsprites.add(wallList)
-
-    DrawWalls(tileMap)
+    MakeTreats(tileMap)
+    MakeWalls(tileMap)
+    MakePortals(tileMap)
     print(len(wallList))
     while True:
 
-        DISPLAYSURF.fill(WHITE)  # Drawing the window
+        WINDOW.fill(WHITE)  # Drawing the window
 
         for event in pygame.event.get():  # Event handling
             if event.type == QUIT or (event.type == KEYUP and event.key == K_ESCAPE):
                 pygame.quit()
                 sys.exit()
-            # elif event.type == KEYDOWN:
-            #     player.onKeyDown(event)
-            # elif event.type == KEYUP:
-            #     player.onKeyUp(event)
-            #
-        pressed = pygame.key.get_pressed()
 
+        pressed = pygame.key.get_pressed()
+        DrawWindow(WINDOW, player)
         # Update player position
         player.updatePosition(pressed)
+        player.updateScore()
 
-        # Render enemies and update position
-        for enemy in enemyList:
-            # enemy.move()
-            DISPLAYSURF.blit(enemy.image, (enemy.x, enemy.y))
-
-        # Render walls
-        for wall in wallList:
-            DISPLAYSURF.blit(wall.image, (wall.x, wall.y))
-
-        # Render player
-        DISPLAYSURF.blit(player.image, (player.x, player.y))
-        allsprites.update()
-        pygame.display.update()
         FPSCLOCK.tick(FPS)
 
 
