@@ -1,18 +1,20 @@
 import pygame, random, sys
 from pygame.locals import *
+import math
 import glob
 
 # Set FPS
 FPS = 30
 
 # Window Dimensions
-WINDOWWIDTH = 613
+WINDOWWIDTH = 638
 WINDOWHEIGHT = 825
 WALL_THICKNESS = 10
 PLAYER_SIZE = 30
-TREAT_SIZE = 20
+TREAT_SIZE = 10
 PLAYER_VEL = 10
 ENEMY_VEL = 5
+WALL_CHECK_OFFSET = 200
 # Colors
 BLUE = (0, 0, 255)
 WHITE = (255, 255, 255)
@@ -28,57 +30,78 @@ LEFT = 'left'
 wallList = []
 treatList = []
 portalList = []
+cornerList = []
 
 pygame.font.init()
 STAT_FONT = pygame.font.SysFont("roboto", 30)
 
 tileMap = """
-WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
-W                       W                       W
-W    0  0  0  0         W                       W
-W 0                     W                       W
-W                       W                       W
-W 0  WWWWW    WWWWWW    W    WWWWWW    WWWWW    W
-W    W   W              W              W   W    W
-W 0  WWWWW                             WWWWW    W
-W                                               W
-W 0                                             W
-W             W     WWWWWWWWW     W             W
-W 0           W         W         W             W
-W    WWWWW    W         W         W    WWWWW    W
-W 0           W         W         W             W
-W 0           WWWWW     W     WWWWW             W                                              
-W             W                   W             W
-WWWWWWWWWW    W                   W    WWWWWWWWWW
-W        W    W                   W    W        W
-W        W    W                   W    W        W
-W        W        WWWW    WWWW         W        W
-WWWWWWWWWW        W          W         WWWWWWWWWW
-X                 W          W                  X   
-X                 W          W                  X   
-X                 W          W                  X   
-X                 W          W                  X   
-WWWWWWWWWW        W          W         WWWWWWWWWW
-W        W        WWWWWWWWWWWW         W        W
-W        W    W                   W    W        W
-W        W    W                   W    W        W
-WWWWWWWWWW    W                   W    WWWWWWWWWW
-W             W                   W             W
-W             WWWWW     W     WWWWW             W   
-W             W         W         W             W
-W    WWWWW    W         W         W    WWWWW    W
-W             W         W         W             W
-W             W     WWWWWWWWW     W             W
-W                                               W
-W                                               W
-W    WWWWW              W              WWWWW    W
-W    W   W              W              W   W    W
-W    WWWWW    WWWWWW    W    WWWWWW    WWWWW    W
-W                       W                       W
-W                       W                       W
-W                       W                       W
-W                       W                       W
-WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW"""
+WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
+W                        W                        W
+W T        T         T   W  T         T        T  W
+W                        W                        W
+W                        W                        W
+W    WWWWW    WWWWWW     W     WWWWWW    WWWWW    W
+W    W   W                               W   W    W
+W    WWWWW T    T    T      T    T    T  WWWWW    W
+W                                                 W
+W T        T    T                T    T        T  W
+W                   WWWWWWWWWWW                   W
+W                        W                        W
+W    WWWWW    W T    T   W  T    T  W    WWWWW    W
+W             W          W          W             W
+W T        T  W          W          W T        T  W
+W             WWWWW      W      WWWWW             W
+W             W                     W             W
+WWWWWWWWWW    W T    T      T    T  W    WWWWWWWWWW
+W        W    W                     W    W        W
+W        W    W                     W    W        W
+W        W         WWWW     WWWW         W        W
+WWWWWWWWWW         W           W         WWWWWWWWWW
+X                  W           W                  X
+XT         T    T  W           W T    T          TX
+X                  W           W                  X
+X                  W           W                  X
+WWWWWWWWWW         W           W         WWWWWWWWWW
+W        W         WWWWWWWWWWWWW         W        W
+W        W    W                     W    W        W
+W        W    W T    T      T    T  W    W        W
+WWWWWWWWWW    W                     W    WWWWWWWWWW
+W             W                     W             W
+W T        T  WWWWW      W      WWWWW T        T  W
+W             W          W          W             W
+W             W T    T   W  T    T  W             W
+W    WWWWW    W          W          W    WWWWW    W
+W             W          W          W             W
+W T        T    T   WWWWWWWWWWW  T    T        T  W
+W                                                 W
+W          T    T    T      T    T    T           W
+W    WWWWW                               WWWWW    W
+W    W   W                               W   W    W
+W    WWWWW    WWWWWW     W     WWWWWW    WWWWW    W
+W                        W                        W
+W T        T         T   W  T         T        T  W
+W                        W                        W
+W                        W                        W
+WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW"""
+
+def checkWallVertical(sameX, belowY, aboveY):
+    for wall in wallList:
+        if belowY > wall.y > aboveY:
+            if wall.x == sameX:
+                return True
+            elif sameX - 12.5 < wall.x < sameX + PLAYER_SIZE:
+                return True
+    return False
+
+def checkWallHorizontal(sameY, leftX, rightX):
+    for wall in wallList:
+        if rightX > wall.x > leftX:
+            if wall.y == sameY:
+                return True
+            elif sameY - WALL_THICKNESS < wall.y < sameY + PLAYER_SIZE:
+                return True
+    return False
 
 
 class Player(pygame.sprite.Sprite):
@@ -101,6 +124,65 @@ class Player(pygame.sprite.Sprite):
         self.vel = PLAYER_VEL
         self.numKeyPressed = 0
 
+    def newInputs(self, pressed):
+        moved = False
+        if not moved and pressed[K_w]:
+            for corner in cornerList:
+                if corner.x == self.x and corner.y < self.y:
+                    offset = self.y - corner.y
+                    if offset > WALL_CHECK_OFFSET:
+                        print("offset greater")
+                        continue
+                    else:
+                        # print("found one at " + str(corner.x) + ", " + str(corner.y))
+                        if not checkWallVertical(self.x, self.y, corner.y):
+                            self.y = corner.y
+                            moved = True
+                            return
+
+
+
+
+
+        elif not moved and pressed[K_a]:
+            for corner in cornerList:
+                if corner.y == self.y and corner.x < self.x:
+                    offset = corner.x - self.x
+                    if offset > WALL_CHECK_OFFSET:
+                        print("offset greater")
+                        continue
+                    else:
+                        print("found one at " + str(corner.x) + ", " + str(corner.y))
+                        if not checkWallHorizontal(self.y, corner.x, self.x):
+                            self.x = corner.x
+                            moved = True
+                            return
+        elif not moved and pressed[K_s]:
+            for corner in cornerList:
+                if corner.x == self.x and corner.y > self.y:
+                    offset = corner.y - self.y
+                    if offset > WALL_CHECK_OFFSET:
+                        print("offset greater")
+                        continue
+                    else:
+                        print("found one at " + str(corner.x) + ", " + str(corner.y))
+                        if not checkWallVertical(self.x, corner.y, self.y):
+                            self.y = corner.y
+                            moved = True
+                            return
+        elif not moved and pressed[K_d]:
+            for corner in cornerList:
+                if corner.y == self.y and corner.x > self.x:
+                    offset = self.x - corner.x
+                    if offset > WALL_CHECK_OFFSET:
+                        print("offset greater")
+                        continue
+                    else:
+                        print("found one at " + str(corner.x) + ", " + str(corner.y))
+                        if not checkWallHorizontal(self.y, self.x, corner.x):
+                            self.x = corner.x
+                            moved = True
+                            return
     def input(self, pressed):
 
         for p in pressed:
@@ -131,7 +213,7 @@ class Player(pygame.sprite.Sprite):
     def updatePosition(self, pressed):
 
         self.numKeyPressed = 0
-
+        self.newInputs(pressed)
         self.input(pressed)
         # Move Player
         if self.x < 0:
@@ -193,7 +275,7 @@ class Portal():
 
 class Enemy(pygame.sprite.Sprite):
 
-    def __init__(self, x, y):
+    def __init__(self, x, y, ind):
         # Call the parent's constructor
         pygame.sprite.Sprite.__init__(self)
 
@@ -202,14 +284,88 @@ class Enemy(pygame.sprite.Sprite):
         self.rect = Rect(x, y, PLAYER_SIZE, PLAYER_SIZE)
         self.width = self.image.get_width()
         self.height = self.image.get_height()
+        self.index = ind
         self.x = x
         self.y = y
         self.vel = ENEMY_VEL
         self.vx = 0
         self.vy = 0
+        self.collided = False
 
-    def move(self, vx, vy):
-        pass
+    def move(self, targetX, targetY):
+        moveDir = -1
+        self.collided = False
+
+        if self.index == 1:
+            disList = []
+            disR = distance(targetX + 10, targetY, self.x, self.y)
+            disList.append(disR)
+            disL = distance(targetX - 10, targetY, self.x, self.y)
+            disList.append(disL)
+            disU = distance(targetX, targetY - 10, self.x, self.y)
+            disList.append(disU)
+            disD = distance(targetX, targetY + 10, self.x, self.y)
+            disList.append(disD)
+            print("disR = " + str(disR) + "disL = " + str(disL) + "disU = " + str(disU) + "disD = " + str(disD))
+            moveDir = disList.index(max(disList))
+            print("moveDir = " + str(moveDir))
+        for wall in wallList:
+            if pygame.sprite.collide_rect(self, wall):
+                self.collided = True
+                if self.vx > 0:
+                    self.x = wall.rect.left - self.width
+
+                elif self.vx < 0:
+                    self.x = wall.rect.right
+                elif self.vy > 0:
+                    self.y = wall.rect.top - self.height
+
+                elif self.vy < 0:
+                    self.y = wall.rect.bottom
+
+                self.vx = 0
+                self.vy = 0
+        if self.collided:
+            tempList = disList
+            tempList.remove(disList[moveDir])
+            moveDir = tempList.index(max(tempList))
+
+        if moveDir == 0:
+            self.vx = self.vel
+            self.vy = 0
+        elif moveDir == 1:
+            self.vx = -self.vel
+            self.vy = 0
+        elif moveDir == 2:
+            self.vx = 0
+            self.vy = -self.vel
+        elif moveDir == 3:
+            self.vx = 0
+            self.vy = self.vel
+
+        # Update Position
+
+        self.x += self.vx
+        self.y += self.vy
+        self.rect.x = self.x
+        self.rect.y = self.y
+
+    def Draw(self, win):
+        win.blit(self.image, (self.x, self.y))
+
+
+class Corner():
+    def __init__(self, x, y):
+        pygame.sprite.Sprite.__init__(self)
+
+        self.image = pygame.Surface((TREAT_SIZE, TREAT_SIZE))
+        self.image.fill(YELLOW)
+        self.rect = Rect(x, y, TREAT_SIZE, TREAT_SIZE)
+        self.width = TREAT_SIZE
+        self.height = TREAT_SIZE
+        self.x = x
+        self.y = y
+        self.playerOnCorner = False
 
 
 class Wall(pygame.sprite.Sprite):
@@ -226,12 +382,26 @@ class Wall(pygame.sprite.Sprite):
         self.y = y
 
 
+def distance(x1, y1, x2, y2):
+    res = (x1 - x2) ** 2 + (y1 - y2) ** 2
+    res = math.sqrt(res)
+    return res
+
+
 def MakeTreats(_tileMap):
     for y, line in enumerate(_tileMap):
         for x, c in enumerate(line):
             if c == '0':
                 treatList.append(Treats(x * 12.5, y * 12.5))
     print(len(treatList))
+
+
+def MakeCorners(_tileMap):
+    for y, line in enumerate(_tileMap):
+        for x, c in enumerate(line):
+            if c == 'T':
+                cornerList.append(Corner(x * 12.5, y * 12.5))
+    print(len(cornerList))
 
 
 def MakePortals(_tileMap):
@@ -245,7 +415,6 @@ def MakePortals(_tileMap):
                 else:
                     ind = 1
                     portalList.append(Portal(x * 12.5, y * 12.5, 12.5, 12.5))
-    print(len(portalList))
 
 
 def MakeWalls(_tileMap):
@@ -255,13 +424,18 @@ def MakeWalls(_tileMap):
                 wallList.append(Wall(x * 12.5, y * 12.5, 12.5, 12.5))
 
 
-def DrawWindow(win, player):
+def DrawWindow(win, player, enemies):
     for wall in wallList:
         win.blit(wall.image, (wall.x, wall.y))
     for treat in treatList:
         win.blit(treat.image, (treat.x, treat.y))
+    for corner in cornerList:
+        win.blit(corner.image, (corner.x, corner.y))
     for portal in portalList:
         portal.Draw(WINDOW)
+    for enemy in enemies:
+        enemy.Draw(WINDOW)
+
     text = STAT_FONT.render("SCORE  " + str(player.score), 1, (255, 0, 0))
     WINDOW.blit(text, (10, 600))
     # Render player
@@ -278,17 +452,18 @@ def main():
 
     WINDOW = pygame.display.set_mode((WINDOWWIDTH, WINDOWHEIGHT))
     pygame.display.set_caption('Lembalo')
-    player = Player(40, 40)
-
-    enemyList = [
-        Enemy(random.randint(0, WINDOWWIDTH - 30), random.randint(0, WINDOWHEIGHT - 430)),
-        Enemy(random.randint(0, WINDOWWIDTH - 30), random.randint(0, WINDOWHEIGHT - 430)),
-        Enemy(random.randint(0, WINDOWWIDTH - 30), random.randint(0, WINDOWHEIGHT - 430)),
-        Enemy(random.randint(0, WINDOWWIDTH - 30), random.randint(0, WINDOWHEIGHT - 430)),
-        Enemy(random.randint(0, WINDOWWIDTH - 30), random.randint(0, WINDOWHEIGHT - 430))
-    ]
 
     tileMap = tileMap.splitlines()
+    MakeTreats(tileMap)
+    MakeCorners(tileMap)
+    MakeWalls(tileMap)
+    MakePortals(tileMap)
+    player = Player(cornerList[10].x, cornerList[10].y)
+
+    enemy1 = Enemy(300, 300, 1)
+    enemies = []
+    enemies.append(enemy1)
+
     # wallList = [
     #     # Mid line
     #     # Wall(0,400, 600, WALL_THICKNESS),
@@ -327,10 +502,6 @@ def main():
     #     Wall(350, 365, WALL_THICKNESS, 80)
     # ]
 
-    MakeTreats(tileMap)
-    MakeWalls(tileMap)
-    MakePortals(tileMap)
-    print(len(wallList))
     while True:
 
         WINDOW.fill(WHITE)  # Drawing the window
@@ -341,8 +512,9 @@ def main():
                 sys.exit()
 
         pressed = pygame.key.get_pressed()
-        DrawWindow(WINDOW, player)
+        DrawWindow(WINDOW, player, enemies)
         # Update player position
+        # enemy1.move(player.x, player.y)
         player.updatePosition(pressed)
         player.updateScore()
 
