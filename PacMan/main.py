@@ -108,7 +108,7 @@ def checkWallHorizontal(sameY, leftX, rightX):
 
 class Player(pygame.sprite.Sprite):
 
-    def __init__(self, x, y):
+    def __init__(self, x, y, ind):
         # Call the parent's constructor
         pygame.sprite.Sprite.__init__(self)
 
@@ -123,6 +123,8 @@ class Player(pygame.sprite.Sprite):
         self.targetX = x
         self.targetY = y
         self.vx = 0
+        self.index = ind
+        self.targetIndex = ind
         self.score = 0
         self.vy = 0
         self.vel = PLAYER_VEL
@@ -130,9 +132,13 @@ class Player(pygame.sprite.Sprite):
         self.moving = False
 
     def newInputs(self, pressed):
+        finding = True
+
 
         if pressed[K_w]:
-            for corner in cornerList:
+            i = self.index - 1
+            while i >= 0:
+                corner = cornerList[i]
                 if corner.x == self.x and corner.y < self.y:
                     offset = self.y - corner.y
                     if offset > WALL_CHECK_OFFSET:
@@ -142,12 +148,29 @@ class Player(pygame.sprite.Sprite):
 
                         if not checkWallVertical(self.x, self.y, corner.y):
                             # self.y = corner.y
+                            self.targetIndex = cornerList.index(corner)
                             self.smoothMove(corner.x, corner.y, 0)
 
                             return
+                        else:
+                             return
+                else:
+                    i -= 1
+
 
         elif pressed[K_a]:
-            for corner in cornerList:
+            if self.index == 30:
+                self.x = cornerList[35].x
+                self.y = cornerList[35].y
+                self.index = 35
+                self.targetIndex = 35
+                self.targetX = cornerList[35].x
+                self.targetY = cornerList[35].y
+                return
+
+            i = self.index - 1
+            while i >= 0:
+                corner = cornerList[i]
                 if corner.y == self.y and corner.x < self.x:
                     offset = corner.x - self.x
                     if offset > WALL_CHECK_OFFSET:
@@ -157,12 +180,21 @@ class Player(pygame.sprite.Sprite):
 
                         if not checkWallHorizontal(corner.y, corner.x, self.x):
                             # self.x = corner.x
+                            self.targetIndex = cornerList.index(corner)
                             self.smoothMove(corner.x, corner.y, 1)
 
                             return
+                        else:
+                            return
+                else:
+                    i -= 1
 
         elif pressed[K_s]:
-            for corner in cornerList:
+
+
+            i = self.index + 1
+            while i < len(cornerList):
+                corner = cornerList[i]
                 if corner.x == self.x and corner.y > self.y:
                     offset = corner.y - self.y
                     if offset > WALL_CHECK_OFFSET:
@@ -172,12 +204,28 @@ class Player(pygame.sprite.Sprite):
 
                         if not checkWallVertical(self.x, corner.y, self.y):
                             # self.y = corner.y
+                            self.targetIndex = cornerList.index(corner)
                             self.smoothMove(corner.x, corner.y, 2)
 
                             return
+                        else:
+                            return
+                else:
+                    i += 1
 
         elif pressed[K_d]:
-            for corner in cornerList:
+            if self.index == 35:
+                self.x = cornerList[30].x
+                self.y = cornerList[30].y
+                self.index = 30
+                self.targetIndex = 30
+                self.targetX = cornerList[30].x
+                self.targetY = cornerList[30].y
+                return
+            
+            i = self.index + 1
+            while i < len(cornerList):
+                corner = cornerList[i]
                 if corner.y == self.y and corner.x > self.x:
                     offset = self.x - corner.x
                     if offset > WALL_CHECK_OFFSET:
@@ -187,9 +235,15 @@ class Player(pygame.sprite.Sprite):
 
                         if not checkWallHorizontal(self.y, self.x, corner.x):
                             # self.x = corner.x
+                            self.targetIndex = cornerList.index(corner)
                             self.smoothMove(corner.x, corner.y, 3)
 
                             return
+                        else:
+                            return
+
+                else:
+                    i += 1
 
     def smoothMove(self, _targetX, _targetY, _moveDir):
         # moveDir = W A S D = 0 1 2 3
@@ -268,6 +322,7 @@ class Player(pygame.sprite.Sprite):
                 self.vy = 0
                 self.x = self.targetX
                 self.y = self.targetY
+                self.index = self.targetIndex
                 self.moving = False
 
         self.x += self.vx
@@ -508,7 +563,7 @@ def main():
     MakeCorners(tileMap)
     MakeWalls(tileMap)
     MakePortals(tileMap)
-    player = Player(cornerList[10].x, cornerList[10].y)
+    player = Player(cornerList[10].x, cornerList[10].y, 10)
 
     enemy1 = Enemy(300, 300, 1)
     enemies = []
