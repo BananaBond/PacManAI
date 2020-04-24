@@ -14,6 +14,9 @@ PLAYER_SIZE = 30
 TREAT_SIZE = 10
 PLAYER_VEL = 10
 ENEMY_VEL = 5
+ENEMY_IND = 31
+PORTAL1_IND = 32
+PORTAL2_IND = 37
 WALL_CHECK_OFFSET = 200
 # Colors
 BLUE = (0, 0, 255)
@@ -53,10 +56,10 @@ W             W          W          W             W
 W T        T  W          W          W T        T  W
 W             WWWWW      W      WWWWW             W
 W             W                     W             W
-WWWWWWWWWW    W T    T      T    T  W    WWWWWWWWWW
+WWWWWWWWWW    W T    T   T  T    T  W    WWWWWWWWWW
 W        W    W                     W    W        W
 W        W    W                     W    W        W
-W        W         WWWW     WWWW         W        W
+W        W         WWWW  T  WWWW         W        W
 WWWWWWWWWW         W           W         WWWWWWWWWW
 X                  W           W                  X
 XT         T    T  W           W T    T          TX
@@ -134,7 +137,6 @@ class Player(pygame.sprite.Sprite):
     def newInputs(self, pressed):
         finding = True
 
-
         if pressed[K_w]:
             i = self.index - 1
             while i >= 0:
@@ -153,19 +155,19 @@ class Player(pygame.sprite.Sprite):
 
                             return
                         else:
-                             return
+                            return
                 else:
                     i -= 1
 
 
         elif pressed[K_a]:
-            if self.index == 30:
-                self.x = cornerList[35].x
-                self.y = cornerList[35].y
-                self.index = 35
-                self.targetIndex = 35
-                self.targetX = cornerList[35].x
-                self.targetY = cornerList[35].y
+            if self.index == PORTAL1_IND:
+                self.x = cornerList[PORTAL2_IND].x
+                self.y = cornerList[PORTAL2_IND].y
+                self.index = PORTAL2_IND
+                self.targetIndex = PORTAL2_IND
+                self.targetX = cornerList[PORTAL2_IND].x
+                self.targetY = cornerList[PORTAL2_IND].y
                 return
 
             i = self.index - 1
@@ -191,7 +193,6 @@ class Player(pygame.sprite.Sprite):
 
         elif pressed[K_s]:
 
-
             i = self.index + 1
             while i < len(cornerList):
                 corner = cornerList[i]
@@ -214,15 +215,15 @@ class Player(pygame.sprite.Sprite):
                     i += 1
 
         elif pressed[K_d]:
-            if self.index == 35:
-                self.x = cornerList[30].x
-                self.y = cornerList[30].y
-                self.index = 30
-                self.targetIndex = 30
-                self.targetX = cornerList[30].x
-                self.targetY = cornerList[30].y
+            if self.index == PORTAL2_IND:
+                self.x = cornerList[PORTAL1_IND].x
+                self.y = cornerList[PORTAL1_IND].y
+                self.index = PORTAL1_IND
+                self.targetIndex = PORTAL1_IND
+                self.targetX = cornerList[PORTAL1_IND].x
+                self.targetY = cornerList[PORTAL1_IND].y
                 return
-            
+
             i = self.index + 1
             while i < len(cornerList):
                 corner = cornerList[i]
@@ -253,7 +254,6 @@ class Player(pygame.sprite.Sprite):
         self.vy = 0
         self.moving = False
 
-
         if not self.moving and _moveDir == 0:
             self.moving = True
             self.vy -= self.vel
@@ -272,7 +272,6 @@ class Player(pygame.sprite.Sprite):
         elif not self.moving and _moveDir == 3:
             self.moving = True
             self.vx += self.vel
-
 
         return
 
@@ -305,7 +304,6 @@ class Player(pygame.sprite.Sprite):
 
     def updatePosition(self, pressed):
 
-
         self.numKeyPressed = 0
         if not self.moving:
             self.newInputs(pressed)
@@ -317,7 +315,7 @@ class Player(pygame.sprite.Sprite):
             self.x = 0
 
         if (self.x is not self.targetX) and self.y is not self.targetY:
-            if ((abs(self.x - self.targetX))<=(PLAYER_VEL/2)) and (abs(self.y - self.targetY))<=(PLAYER_VEL/2):
+            if ((abs(self.x - self.targetX)) <= (PLAYER_VEL / 2)) and (abs(self.y - self.targetY)) <= (PLAYER_VEL / 2):
                 self.vx = 0
                 self.vy = 0
                 self.x = self.targetX
@@ -329,8 +327,6 @@ class Player(pygame.sprite.Sprite):
         self.y += self.vy
         self.rect.x = self.x
         self.rect.y = self.y
-
-
 
         # Check for Collisions
         for wall in wallList:
@@ -382,7 +378,7 @@ class Portal():
 
 class Enemy(pygame.sprite.Sprite):
 
-    def __init__(self, x, y, ind):
+    def __init__(self, x, y, ind, type):
         # Call the parent's constructor
         pygame.sprite.Sprite.__init__(self)
 
@@ -392,72 +388,205 @@ class Enemy(pygame.sprite.Sprite):
         self.width = self.image.get_width()
         self.height = self.image.get_height()
         self.index = ind
+        self.type = type
+        self.targetX = x
+        self.targetY = y
+        self.targetIndex = ind
         self.x = x
         self.y = y
+        self.moving = False
         self.vel = ENEMY_VEL
         self.vx = 0
         self.vy = 0
-        self.collided = False
+
 
     def move(self, targetX, targetY):
-        moveDir = -1
-        self.collided = False
+        _moveDir = -1
 
-        if self.index == 1:
-            disList = []
-            disR = distance(targetX + 10, targetY, self.x, self.y)
-            disList.append(disR)
-            disL = distance(targetX - 10, targetY, self.x, self.y)
-            disList.append(disL)
-            disU = distance(targetX, targetY - 10, self.x, self.y)
-            disList.append(disU)
-            disD = distance(targetX, targetY + 10, self.x, self.y)
-            disList.append(disD)
-            moveDir = disList.index(max(disList))
 
-        for wall in wallList:
-            if pygame.sprite.collide_rect(self, wall):
-                self.collided = True
-                if self.vx > 0:
-                    self.x = wall.rect.left - self.width
+        disList = []
+        disR = distance(targetX + 10, targetY, self.x, self.y)
+        disList.append(disR)
+        disL = distance(targetX - 10, targetY, self.x, self.y)
+        disList.append(disL)
+        disU = distance(targetX, targetY - 10, self.x, self.y)
+        disList.append(disU)
+        disD = distance(targetX, targetY + 10, self.x, self.y)
+        disList.append(disD)
+        _moveDir = disList.index(max(disList))
 
-                elif self.vx < 0:
-                    self.x = wall.rect.right
-                elif self.vy > 0:
-                    self.y = wall.rect.top - self.height
+        randint = random.randint(0,3)
+        self.newInputs(randint)
 
-                elif self.vy < 0:
-                    self.y = wall.rect.bottom
 
-                self.vx = 0
-                self.vy = 0
-        if self.collided:
-            tempList = disList
-            tempList.remove(disList[moveDir])
-            moveDir = tempList.index(max(tempList))
+    def Draw(self, win):
+        win.blit(self.image, (self.x, self.y))
+
+    def newInputs(self, moveDir):
+        finding = True
 
         if moveDir == 0:
-            self.vx = self.vel
-            self.vy = 0
-        elif moveDir == 1:
-            self.vx = -self.vel
-            self.vy = 0
-        elif moveDir == 2:
-            self.vx = 0
-            self.vy = -self.vel
-        elif moveDir == 3:
-            self.vx = 0
-            self.vy = self.vel
+            i = self.index - 1
+            while i >= 0:
+                corner = cornerList[i]
+                if corner.x == self.x and corner.y < self.y:
+                    offset = self.y - corner.y
+                    if offset > WALL_CHECK_OFFSET:
 
-        # Update Position
+                        continue
+                    else:
+
+                        if not checkWallVertical(self.x, self.y, corner.y):
+                            # self.y = corner.y
+                            self.targetIndex = cornerList.index(corner)
+                            self.smoothMove(corner.x, corner.y, 0)
+
+                            return
+                        else:
+                            return
+                else:
+                    i -= 1
+
+
+        elif moveDir == 1:
+            if self.index == PORTAL1_IND:
+                self.x = cornerList[PORTAL2_IND].x
+                self.y = cornerList[PORTAL2_IND].y
+                self.index = PORTAL2_IND
+                self.targetIndex = PORTAL2_IND
+                self.targetX = cornerList[PORTAL2_IND].x
+                self.targetY = cornerList[PORTAL2_IND].y
+                return
+
+            i = self.index - 1
+            while i >= 0:
+                corner = cornerList[i]
+                if corner.y == self.y and corner.x < self.x:
+                    offset = corner.x - self.x
+                    if offset > WALL_CHECK_OFFSET:
+
+                        continue
+                    else:
+
+                        if not checkWallHorizontal(corner.y, corner.x, self.x):
+                            # self.x = corner.x
+                            self.targetIndex = cornerList.index(corner)
+                            self.smoothMove(corner.x, corner.y, 1)
+
+                            return
+                        else:
+                            return
+                else:
+                    i -= 1
+
+        elif moveDir == 2:
+
+            i = self.index + 1
+            while i < len(cornerList):
+                corner = cornerList[i]
+                if corner.x == self.x and corner.y > self.y:
+                    offset = corner.y - self.y
+                    if offset > WALL_CHECK_OFFSET:
+
+                        continue
+                    else:
+
+                        if not checkWallVertical(self.x, corner.y, self.y):
+                            # self.y = corner.y
+                            self.targetIndex = cornerList.index(corner)
+                            self.smoothMove(corner.x, corner.y, 2)
+
+                            return
+                        else:
+                            return
+                else:
+                    i += 1
+
+        elif moveDir == 3:
+            if self.index == PORTAL2_IND:
+                self.x = cornerList[PORTAL1_IND].x
+                self.y = cornerList[PORTAL1_IND].y
+                self.index = PORTAL1_IND
+                self.targetIndex = PORTAL1_IND
+                self.targetX = cornerList[PORTAL1_IND].x
+                self.targetY = cornerList[PORTAL1_IND].y
+                return
+
+            i = self.index + 1
+            while i < len(cornerList):
+                corner = cornerList[i]
+                if corner.y == self.y and corner.x > self.x:
+                    offset = self.x - corner.x
+                    if offset > WALL_CHECK_OFFSET:
+
+                        continue
+                    else:
+
+                        if not checkWallHorizontal(self.y, self.x, corner.x):
+                            # self.x = corner.x
+                            self.targetIndex = cornerList.index(corner)
+                            self.smoothMove(corner.x, corner.y, 3)
+
+                            return
+                        else:
+                            return
+
+                else:
+                    i += 1
+
+    def smoothMove(self, _targetX, _targetY, _moveDir):
+        # moveDir = W A S D = 0 1 2 3
+        self.targetY = _targetY
+        self.targetX = _targetX
+        self.vx = 0
+        self.vy = 0
+        self.moving = False
+
+        if not self.moving and _moveDir == 0:
+            self.moving = True
+            self.vy -= self.vel
+
+
+        elif not self.moving and _moveDir == 1:
+            self.moving = True
+            self.vx -= self.vel
+
+
+        elif not self.moving and _moveDir == 2:
+            self.moving = True
+            self.vy += self.vel
+
+
+        elif not self.moving and _moveDir == 3:
+            self.moving = True
+            self.vx += self.vel
+
+        return
+
+    def updatePosition(self, _targetX, _targetY):
+
+        if not self.moving:
+            self.move(_targetX, _targetY)
+        # self.input(pressed)
+        # Move Player
+        if self.x < 0:
+            self.x = WINDOWWIDTH
+        elif self.x > WINDOWWIDTH:
+            self.x = 0
+
+        if (self.x is not self.targetX) and self.y is not self.targetY:
+            if ((abs(self.x - self.targetX)) <= (PLAYER_VEL / 2)) and (abs(self.y - self.targetY)) <= (PLAYER_VEL / 2):
+                self.vx = 0
+                self.vy = 0
+                self.x = self.targetX
+                self.y = self.targetY
+                self.index = self.targetIndex
+                self.moving = False
 
         self.x += self.vx
         self.y += self.vy
         self.rect.x = self.x
         self.rect.y = self.y
-
-    def Draw(self, win):
-        win.blit(self.image, (self.x, self.y))
 
 
 class Corner():
@@ -499,7 +628,6 @@ def MakeTreats(_tileMap):
         for x, c in enumerate(line):
             if c == '0':
                 treatList.append(Treats(x * 12.5, y * 12.5))
-
 
 
 def MakeCorners(_tileMap):
@@ -565,7 +693,7 @@ def main():
     MakePortals(tileMap)
     player = Player(cornerList[10].x, cornerList[10].y, 10)
 
-    enemy1 = Enemy(300, 300, 1)
+    enemy1 = Enemy(cornerList[31].x, cornerList[31].y, ENEMY_IND, 1)
     enemies = []
     enemies.append(enemy1)
 
@@ -618,9 +746,9 @@ def main():
 
         pressed = pygame.key.get_pressed()
         DrawWindow(WINDOW, player, enemies)
-        # Update player position
-        # enemy1.move(player.x, player.y)
+
         player.updatePosition(pressed)
+        enemy1.updatePosition(player.targetX, player.targetY)
         player.updateScore()
 
         FPSCLOCK.tick(FPS)
