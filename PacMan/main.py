@@ -85,6 +85,7 @@ W                        W                        W
 W                        W                        W
 WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW"""
 
+
 def checkWallVertical(sameX, belowY, aboveY):
     for wall in wallList:
         if belowY > wall.y > aboveY:
@@ -93,6 +94,7 @@ def checkWallVertical(sameX, belowY, aboveY):
             elif sameX - 12.5 < wall.x < sameX + PLAYER_SIZE:
                 return True
     return False
+
 
 def checkWallHorizontal(sameY, leftX, rightX):
     for wall in wallList:
@@ -118,71 +120,108 @@ class Player(pygame.sprite.Sprite):
         self.height = PLAYER_SIZE
         self.x = x
         self.y = y
+        self.targetX = x
+        self.targetY = y
         self.vx = 0
         self.score = 0
         self.vy = 0
         self.vel = PLAYER_VEL
         self.numKeyPressed = 0
+        self.moving = False
 
     def newInputs(self, pressed):
-        moved = False
-        if not moved and pressed[K_w]:
+
+        if pressed[K_w]:
             for corner in cornerList:
                 if corner.x == self.x and corner.y < self.y:
                     offset = self.y - corner.y
                     if offset > WALL_CHECK_OFFSET:
-                        print("offset greater")
+
                         continue
                     else:
-                        # print("found one at " + str(corner.x) + ", " + str(corner.y))
+
                         if not checkWallVertical(self.x, self.y, corner.y):
-                            self.y = corner.y
-                            moved = True
+                            # self.y = corner.y
+                            self.smoothMove(corner.x, corner.y, 0)
+
                             return
 
-
-
-
-
-        elif not moved and pressed[K_a]:
+        elif pressed[K_a]:
             for corner in cornerList:
                 if corner.y == self.y and corner.x < self.x:
                     offset = corner.x - self.x
                     if offset > WALL_CHECK_OFFSET:
-                        print("offset greater")
+
                         continue
                     else:
-                        print("found one at " + str(corner.x) + ", " + str(corner.y))
-                        if not checkWallHorizontal(self.y, corner.x, self.x):
-                            self.x = corner.x
-                            moved = True
+
+                        if not checkWallHorizontal(corner.y, corner.x, self.x):
+                            # self.x = corner.x
+                            self.smoothMove(corner.x, corner.y, 1)
+
                             return
-        elif not moved and pressed[K_s]:
+
+        elif pressed[K_s]:
             for corner in cornerList:
                 if corner.x == self.x and corner.y > self.y:
                     offset = corner.y - self.y
                     if offset > WALL_CHECK_OFFSET:
-                        print("offset greater")
+
                         continue
                     else:
-                        print("found one at " + str(corner.x) + ", " + str(corner.y))
+
                         if not checkWallVertical(self.x, corner.y, self.y):
-                            self.y = corner.y
-                            moved = True
+                            # self.y = corner.y
+                            self.smoothMove(corner.x, corner.y, 2)
+
                             return
-        elif not moved and pressed[K_d]:
+
+        elif pressed[K_d]:
             for corner in cornerList:
                 if corner.y == self.y and corner.x > self.x:
                     offset = self.x - corner.x
                     if offset > WALL_CHECK_OFFSET:
-                        print("offset greater")
+
                         continue
                     else:
-                        print("found one at " + str(corner.x) + ", " + str(corner.y))
+
                         if not checkWallHorizontal(self.y, self.x, corner.x):
-                            self.x = corner.x
-                            moved = True
+                            # self.x = corner.x
+                            self.smoothMove(corner.x, corner.y, 3)
+
                             return
+
+    def smoothMove(self, _targetX, _targetY, _moveDir):
+        # moveDir = W A S D = 0 1 2 3
+        self.targetY = _targetY
+        self.targetX = _targetX
+        self.vx = 0
+        self.vy = 0
+        self.moving = False
+
+
+        if not self.moving and _moveDir == 0:
+            self.moving = True
+            self.vy -= self.vel
+
+
+        elif not self.moving and _moveDir == 1:
+            self.moving = True
+            self.vx -= self.vel
+
+
+        elif not self.moving and _moveDir == 2:
+            self.moving = True
+            self.vy += self.vel
+
+
+        elif not self.moving and _moveDir == 3:
+            self.moving = True
+            self.vx += self.vel
+
+
+        return
+
     def input(self, pressed):
 
         for p in pressed:
@@ -212,18 +251,31 @@ class Player(pygame.sprite.Sprite):
 
     def updatePosition(self, pressed):
 
+
         self.numKeyPressed = 0
-        self.newInputs(pressed)
-        self.input(pressed)
+        if not self.moving:
+            self.newInputs(pressed)
+        # self.input(pressed)
         # Move Player
         if self.x < 0:
             self.x = WINDOWWIDTH
         elif self.x > WINDOWWIDTH:
             self.x = 0
+
+        if (self.x is not self.targetX) and self.y is not self.targetY:
+            if ((abs(self.x - self.targetX))<=(PLAYER_VEL/2)) and (abs(self.y - self.targetY))<=(PLAYER_VEL/2):
+                self.vx = 0
+                self.vy = 0
+                self.x = self.targetX
+                self.y = self.targetY
+                self.moving = False
+
         self.x += self.vx
         self.y += self.vy
         self.rect.x = self.x
         self.rect.y = self.y
+
+
 
         # Check for Collisions
         for wall in wallList:
@@ -306,9 +358,8 @@ class Enemy(pygame.sprite.Sprite):
             disList.append(disU)
             disD = distance(targetX, targetY + 10, self.x, self.y)
             disList.append(disD)
-            print("disR = " + str(disR) + "disL = " + str(disL) + "disU = " + str(disU) + "disD = " + str(disD))
             moveDir = disList.index(max(disList))
-            print("moveDir = " + str(moveDir))
+
         for wall in wallList:
             if pygame.sprite.collide_rect(self, wall):
                 self.collided = True
@@ -393,7 +444,7 @@ def MakeTreats(_tileMap):
         for x, c in enumerate(line):
             if c == '0':
                 treatList.append(Treats(x * 12.5, y * 12.5))
-    print(len(treatList))
+
 
 
 def MakeCorners(_tileMap):
@@ -401,7 +452,6 @@ def MakeCorners(_tileMap):
         for x, c in enumerate(line):
             if c == 'T':
                 cornerList.append(Corner(x * 12.5, y * 12.5))
-    print(len(cornerList))
 
 
 def MakePortals(_tileMap):
