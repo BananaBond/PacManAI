@@ -347,6 +347,15 @@ class Player(pygame.sprite.Sprite):
                 self.vy = 0
 
 
+def nLargest(targetList, n):
+    max = targetList[0]
+    ind = 0
+    for i, t in enumerate(targetList):
+        if t > max:
+            max = t
+            ind = i
+
+
 class Treats(pygame.sprite.Sprite):
 
     def __init__(self, x, y):
@@ -392,6 +401,7 @@ class Enemy(pygame.sprite.Sprite):
         self.targetX = x
         self.targetY = y
         self.targetIndex = ind
+        self.posMoves = [-1, -1, -1, -1]
         self.x = x
         self.y = y
         self.moving = False
@@ -399,140 +409,138 @@ class Enemy(pygame.sprite.Sprite):
         self.vx = 0
         self.vy = 0
 
-
     def move(self, targetX, targetY):
-        _moveDir = -1
+        _moveCorner = -1
+
+        disList = [math.inf, math.inf, math.inf, math.inf]
+
+        self.updatePosMoves()
+        for i in self.posMoves:
+            print(i)
+        print(" ")
+        for i, potentialCorner in enumerate(self.posMoves):
+            if potentialCorner is not -1:
+                disList[i] = distance(targetX, targetY, cornerList[potentialCorner].x, cornerList[potentialCorner].y)
+
+        i = disList.index(min(disList))
+        _moveCorner = self.posMoves[i]
+        self.targetX = cornerList[_moveCorner].x
+        self.targetY = cornerList[_moveCorner].y
+        self.smoothMove(self.targetX, self.targetY, i)
 
 
-        disList = []
-        disR = distance(targetX + 10, targetY, self.x, self.y)
-        disList.append(disR)
-        disL = distance(targetX - 10, targetY, self.x, self.y)
-        disList.append(disL)
-        disU = distance(targetX, targetY - 10, self.x, self.y)
-        disList.append(disU)
-        disD = distance(targetX, targetY + 10, self.x, self.y)
-        disList.append(disD)
-        _moveDir = disList.index(max(disList))
 
-        randint = random.randint(0,3)
-        self.newInputs(randint)
-
+        self.targetIndex = _moveCorner
 
     def Draw(self, win):
         win.blit(self.image, (self.x, self.y))
 
-    def newInputs(self, moveDir):
-        finding = True
+    def updatePosMoves(self):
 
-        if moveDir == 0:
-            i = self.index - 1
-            while i >= 0:
-                corner = cornerList[i]
-                if corner.x == self.x and corner.y < self.y:
-                    offset = self.y - corner.y
-                    if offset > WALL_CHECK_OFFSET:
 
-                        continue
-                    else:
+        i = self.index - 1
+        while i >= 0:
+            corner = cornerList[i]
+            if corner.x == self.x and corner.y < self.y:
+                offset = self.y - corner.y
+                if offset > WALL_CHECK_OFFSET:
 
-                        if not checkWallVertical(self.x, self.y, corner.y):
-                            # self.y = corner.y
-                            self.targetIndex = cornerList.index(corner)
-                            self.smoothMove(corner.x, corner.y, 0)
-
-                            return
-                        else:
-                            return
+                    continue
                 else:
-                    i -= 1
 
+                    if not checkWallVertical(self.x, self.y, corner.y):
 
-        elif moveDir == 1:
-            if self.index == PORTAL1_IND:
-                self.x = cornerList[PORTAL2_IND].x
-                self.y = cornerList[PORTAL2_IND].y
-                self.index = PORTAL2_IND
-                self.targetIndex = PORTAL2_IND
-                self.targetX = cornerList[PORTAL2_IND].x
-                self.targetY = cornerList[PORTAL2_IND].y
-                return
+                        self.posMoves[0] = cornerList.index(corner)
 
-            i = self.index - 1
-            while i >= 0:
-                corner = cornerList[i]
-                if corner.y == self.y and corner.x < self.x:
-                    offset = corner.x - self.x
-                    if offset > WALL_CHECK_OFFSET:
-
-                        continue
                     else:
+                        self.posMoves[0] = -1
+                    break
 
-                        if not checkWallHorizontal(corner.y, corner.x, self.x):
-                            # self.x = corner.x
-                            self.targetIndex = cornerList.index(corner)
-                            self.smoothMove(corner.x, corner.y, 1)
+            else:
+                i -= 1
 
-                            return
-                        else:
-                            return
+            #
+            # if self.index == PORTAL1_IND:
+            #     self.x = cornerList[PORTAL2_IND].x
+            #     self.y = cornerList[PORTAL2_IND].y
+            #     self.index = PORTAL2_IND
+            #     self.targetIndex = PORTAL2_IND
+            #     self.targetX = cornerList[PORTAL2_IND].x
+            #     self.targetY = cornerList[PORTAL2_IND].y
+            #     return True
+
+        i = self.index - 1
+        while i >= 0:
+            corner = cornerList[i]
+            if corner.y == self.y and corner.x < self.x:
+                offset = corner.x - self.x
+                if offset > WALL_CHECK_OFFSET:
+
+                    continue
                 else:
-                    i -= 1
 
-        elif moveDir == 2:
+                    if not checkWallHorizontal(corner.y, corner.x, self.x):
 
-            i = self.index + 1
-            while i < len(cornerList):
-                corner = cornerList[i]
-                if corner.x == self.x and corner.y > self.y:
-                    offset = corner.y - self.y
-                    if offset > WALL_CHECK_OFFSET:
+                        self.posMoves[1] = cornerList.index(corner)
 
-                        continue
                     else:
+                        self.posMoves[0] = -1
 
-                        if not checkWallVertical(self.x, corner.y, self.y):
-                            # self.y = corner.y
-                            self.targetIndex = cornerList.index(corner)
-                            self.smoothMove(corner.x, corner.y, 2)
+                    break
+            else:
+                i -= 1
 
-                            return
-                        else:
-                            return
+        i = self.index + 1
+        while i < len(cornerList):
+            corner = cornerList[i]
+            if corner.x == self.x and corner.y > self.y:
+                offset = corner.y - self.y
+                if offset > WALL_CHECK_OFFSET:
+
+                    continue
                 else:
-                    i += 1
 
-        elif moveDir == 3:
-            if self.index == PORTAL2_IND:
-                self.x = cornerList[PORTAL1_IND].x
-                self.y = cornerList[PORTAL1_IND].y
-                self.index = PORTAL1_IND
-                self.targetIndex = PORTAL1_IND
-                self.targetX = cornerList[PORTAL1_IND].x
-                self.targetY = cornerList[PORTAL1_IND].y
-                return
+                    if not checkWallVertical(self.x, corner.y, self.y):
 
-            i = self.index + 1
-            while i < len(cornerList):
-                corner = cornerList[i]
-                if corner.y == self.y and corner.x > self.x:
-                    offset = self.x - corner.x
-                    if offset > WALL_CHECK_OFFSET:
+                        self.posMoves[2] = cornerList.index(corner)
 
-                        continue
                     else:
+                        self.posMoves[2] = -1
 
-                        if not checkWallHorizontal(self.y, self.x, corner.x):
-                            # self.x = corner.x
-                            self.targetIndex = cornerList.index(corner)
-                            self.smoothMove(corner.x, corner.y, 3)
+                    break
+            else:
+                i += 1
 
-                            return
-                        else:
-                            return
+        # if self.index == PORTAL2_IND:
+        #     self.x = cornerList[PORTAL1_IND].x
+        #     self.y = cornerList[PORTAL1_IND].y
+        #     self.index = PORTAL1_IND
+        #     self.targetIndex = PORTAL1_IND
+        #     self.targetX = cornerList[PORTAL1_IND].x
+        #     self.targetY = cornerList[PORTAL1_IND].y
+        #     return True
 
+        i = self.index + 1
+        while i < len(cornerList):
+            corner = cornerList[i]
+            if corner.y == self.y and corner.x > self.x:
+                offset = self.x - corner.x
+                if offset > WALL_CHECK_OFFSET:
+
+                    continue
                 else:
-                    i += 1
+
+                    if not checkWallHorizontal(self.y, self.x, corner.x):
+
+                        self.posMoves[3] = cornerList.index(corner)
+
+                    else:
+                        self.posMoves[3] = -1
+
+                    break
+
+            else:
+                i += 1
 
     def smoothMove(self, _targetX, _targetY, _moveDir):
         # moveDir = W A S D = 0 1 2 3
