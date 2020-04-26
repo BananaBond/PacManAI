@@ -416,6 +416,31 @@ class Enemy(pygame.sprite.Sprite):
         self.vx = 0
         self.vy = 0
 
+    def updatePosition(self, _targetX, _targetY):
+
+        if not self.moving:
+            self.move(_targetX, _targetY)
+        # self.input(pressed)
+        # Move Player
+        if self.x < 0:
+            self.x = WINDOWWIDTH
+        elif self.x > WINDOWWIDTH:
+            self.x = 0
+
+        if (self.x is not self.targetX) and self.y is not self.targetY:
+            if ((abs(self.x - self.targetX)) <= (PLAYER_VEL / 2)) and (abs(self.y - self.targetY)) <= (PLAYER_VEL / 2):
+                self.vx = 0
+                self.vy = 0
+                self.x = self.targetX
+                self.y = self.targetY
+                self.index = self.targetIndex
+                self.moving = False
+
+        self.x += self.vx
+        self.y += self.vy
+        self.rect.x = self.x
+        self.rect.y = self.y
+
     def move(self, targetX, targetY):
         _moveCorner = -1
         self.targetX = targetX
@@ -426,9 +451,7 @@ class Enemy(pygame.sprite.Sprite):
         disList = [math.inf, math.inf, math.inf, math.inf]
 
         self.updatePosMoves()
-        for i in self.posMoves:
-            print(i)
-        print(" ")
+
         for i, potentialCorner in enumerate(self.posMoves):
             if potentialCorner is not -1:
                 disList[i] = distance(targetX, targetY, cornerList[potentialCorner].x, cornerList[potentialCorner].y)
@@ -447,8 +470,10 @@ class Enemy(pygame.sprite.Sprite):
     def updatePosMoves(self):
 
         self.posMoves = [-1, -1, -1, -1]
+        ctr = 0
         i = self.index - 1
-        while i >= 0:
+        while i >= 0 and ctr<=15:
+            ctr += 1
             corner = cornerList[i]
             if corner.x == self.x and corner.y < self.y:
                 offset = self.y - corner.y
@@ -477,9 +502,10 @@ class Enemy(pygame.sprite.Sprite):
             #     self.targetX = cornerList[PORTAL2_IND].x
             #     self.targetY = cornerList[PORTAL2_IND].y
             #     return True
-
+        ctr = 0
         i = self.index - 1
-        while i >= 0:
+        while i >= 0 and ctr <= 15:
+            ctr += 1
             corner = cornerList[i]
             if corner.y == self.y and corner.x < self.x:
                 offset = corner.x - self.x
@@ -498,9 +524,10 @@ class Enemy(pygame.sprite.Sprite):
                     break
             else:
                 i -= 1
-
+        ctr = 0
         i = self.index + 1
-        while i < len(cornerList):
+        while i < len(cornerList) and ctr <= 15:
+            ctr += 1
             corner = cornerList[i]
             if corner.x == self.x and corner.y > self.y:
                 offset = corner.y - self.y
@@ -528,9 +555,10 @@ class Enemy(pygame.sprite.Sprite):
         #     self.targetX = cornerList[PORTAL1_IND].x
         #     self.targetY = cornerList[PORTAL1_IND].y
         #     return True
-
+        ctr = 0
         i = self.index + 1
-        while i < len(cornerList):
+        while i < len(cornerList) and ctr <= 15:
+            ctr += 1
             corner = cornerList[i]
             if corner.y == self.y and corner.x > self.x:
                 offset = self.x - corner.x
@@ -580,30 +608,7 @@ class Enemy(pygame.sprite.Sprite):
 
         return
 
-    def updatePosition(self, _targetX, _targetY):
 
-        if not self.moving:
-            self.move(_targetX, _targetY)
-        # self.input(pressed)
-        # Move Player
-        if self.x < 0:
-            self.x = WINDOWWIDTH
-        elif self.x > WINDOWWIDTH:
-            self.x = 0
-
-        if (self.x is not self.targetX) and self.y is not self.targetY:
-            if ((abs(self.x - self.targetX)) <= (PLAYER_VEL / 2)) and (abs(self.y - self.targetY)) <= (PLAYER_VEL / 2):
-                self.vx = 0
-                self.vy = 0
-                self.x = self.targetX
-                self.y = self.targetY
-                self.index = self.targetIndex
-                self.moving = False
-
-        self.x += self.vx
-        self.y += self.vy
-        self.rect.x = self.x
-        self.rect.y = self.y
 
 
 class Corner():
