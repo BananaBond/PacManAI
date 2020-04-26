@@ -34,6 +34,7 @@ wallList = []
 treatList = []
 portalList = []
 cornerList = []
+enemyList = []
 
 pygame.font.init()
 STAT_FONT = pygame.font.SysFont("roboto", 30)
@@ -302,6 +303,12 @@ class Player(pygame.sprite.Sprite):
                 self.score += 1
                 treatList.remove(treat)
 
+    def Death(self):
+
+        for enemy in enemyList:
+            if pygame.sprite.collide_rect(self, enemy):
+                self.score -= 1
+
     def updatePosition(self, pressed):
 
         self.numKeyPressed = 0
@@ -362,7 +369,7 @@ class Treats(pygame.sprite.Sprite):
         pygame.sprite.Sprite.__init__(self)
 
         self.image = pygame.Surface((TREAT_SIZE, TREAT_SIZE))
-        self.image.fill(YELLOW)
+        self.image.fill(RED)
         self.rect = Rect(x, y, TREAT_SIZE, TREAT_SIZE)
         self.width = TREAT_SIZE
         self.height = TREAT_SIZE
@@ -411,6 +418,10 @@ class Enemy(pygame.sprite.Sprite):
 
     def move(self, targetX, targetY):
         _moveCorner = -1
+        self.targetX = targetX
+        self.targetY = targetY
+        if self.x == targetX and self.y == targetY:
+            return
 
         disList = [math.inf, math.inf, math.inf, math.inf]
 
@@ -428,8 +439,6 @@ class Enemy(pygame.sprite.Sprite):
         self.targetY = cornerList[_moveCorner].y
         self.smoothMove(self.targetX, self.targetY, i)
 
-
-
         self.targetIndex = _moveCorner
 
     def Draw(self, win):
@@ -437,7 +446,7 @@ class Enemy(pygame.sprite.Sprite):
 
     def updatePosMoves(self):
 
-
+        self.posMoves = [-1, -1, -1, -1]
         i = self.index - 1
         while i >= 0:
             corner = cornerList[i]
@@ -634,7 +643,7 @@ def distance(x1, y1, x2, y2):
 def MakeTreats(_tileMap):
     for y, line in enumerate(_tileMap):
         for x, c in enumerate(line):
-            if c == '0':
+            if c == '0' or c =='T':
                 treatList.append(Treats(x * 12.5, y * 12.5))
 
 
@@ -670,15 +679,15 @@ def DrawWindow(win, player, enemies):
         win.blit(wall.image, (wall.x, wall.y))
     for treat in treatList:
         win.blit(treat.image, (treat.x, treat.y))
-    for corner in cornerList:
-        win.blit(corner.image, (corner.x, corner.y))
+    # for corner in cornerList:
+    #     win.blit(corner.image, (corner.x, corner.y))
     for portal in portalList:
         portal.Draw(WINDOW)
     for enemy in enemies:
         enemy.Draw(WINDOW)
 
     text = STAT_FONT.render("SCORE  " + str(player.score), 1, (255, 0, 0))
-    WINDOW.blit(text, (10, 600))
+    WINDOW.blit(text, (10, 700))
     # Render player
     win.blit(player.image, (player.x, player.y))
     pygame.display.update()
@@ -702,8 +711,7 @@ def main():
     player = Player(cornerList[10].x, cornerList[10].y, 10)
 
     enemy1 = Enemy(cornerList[31].x, cornerList[31].y, ENEMY_IND, 1)
-    enemies = []
-    enemies.append(enemy1)
+    enemyList.append(enemy1)
 
     # wallList = [
     #     # Mid line
@@ -753,11 +761,12 @@ def main():
                 sys.exit()
 
         pressed = pygame.key.get_pressed()
-        DrawWindow(WINDOW, player, enemies)
+        DrawWindow(WINDOW, player, enemyList)
 
         player.updatePosition(pressed)
         enemy1.updatePosition(player.targetX, player.targetY)
         player.updateScore()
+        player.Death()
 
         FPSCLOCK.tick(FPS)
 
