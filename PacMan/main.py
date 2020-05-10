@@ -41,6 +41,8 @@ treatList = []
 portalList = []
 cornerList = []
 enemyList = []
+cornerPos = []
+cornerPosFlat = []
 
 pygame.font.init()
 STAT_FONT = pygame.font.SysFont("roboto", 30)
@@ -668,12 +670,17 @@ def MakeTreats(_tileMap):
 
 
 def MakeCorners(_tileMap):
-    global cornerList
+    global cornerList, cornerPos, cornerPosFlat
     cornerList = []
+    cornerPos = []
+    cornerPosFlat = []
     for y, line in enumerate(_tileMap):
         for x, c in enumerate(line):
             if c == 'T':
                 cornerList.append(Corner(x * 12.5, y * 12.5))
+                cornerPos.append([x*12.5, y*12.5])
+                cornerPosFlat.append(x*12.5)
+                cornerPosFlat.append(y*12.5)
 
 
 def MakePortals(_tileMap):
@@ -736,6 +743,7 @@ def eval_genomes(genomes, config):
 
         g.fitness = 0
         # For each Genome, create a new network
+
         net = neat.nn.FeedForwardNetwork.create(g, config)
         nets.append(net)
         ge.append(g)
@@ -770,8 +778,10 @@ def gameFunction(genomeNum, nets, ge):
 
     enemy1 = Enemy(cornerList[31].x, cornerList[31].y, ENEMY_IND, 1)
     enemyList.append(enemy1)
+    timeCtr = 0
 
     while True:
+
         mvtInputs = [0, 0, 0, 0]
         WINDOW.fill(WHITE)  # Drawing the window
 
@@ -780,16 +790,18 @@ def gameFunction(genomeNum, nets, ge):
                 pygame.quit()
                 sys.exit()
 
-        screensurf = pygame.display.get_surface()
-        pixelArray = pygame.surfarray.pixels2d(screensurf)
+        # screensurf = pygame.display.get_surface()
+        # pixelArray = pygame.surfarray.pixels2d(screensurf)
 
-        output = nets[genomeNum].activate((player.x, player.y, enemy1.x, enemy1.y, *pixelArray))
-        del pixelArray
+        output = nets[genomeNum].activate((player.x, player.y, enemy1.x, enemy1.y, *cornerPosFlat))
+        # del pixelArray
 
         res = output.index(max(output))
 
         pressed = pygame.key.get_pressed()
         DrawWindow(WINDOW, player, enemyList)
+
+
 
 
 
@@ -819,9 +831,10 @@ def gameFunction(genomeNum, nets, ge):
         enemy1.updatePosition(player.targetX, player.targetY)
         if player.updateScore():
             ge[genomeNum].fitness += 5
-            lastScoreTime = time.time()
+            timeCtr = 0
         else:
-            if time.time() - lastScoreTime > 60:
+            timeCtr += 0.1
+            if timeCtr > 60:
                 ge[genomeNum].fitness -= 10
                 ge.pop(genomeNum)
                 nets.pop(genomeNum)
