@@ -1,10 +1,16 @@
+import os
+
 import pygame, random, sys
 from pygame.locals import *
 import math
 import glob
+import time
+import neat
 
 # Set FPS
 FPS = 30
+
+gen = 0
 
 # Window Dimensions
 WINDOWWIDTH = 638
@@ -38,6 +44,9 @@ enemyList = []
 
 pygame.font.init()
 STAT_FONT = pygame.font.SysFont("roboto", 30)
+
+WINDOW = pygame.display.set_mode((WINDOWWIDTH, WINDOWHEIGHT))
+pygame.display.set_caption('Lembalo')
 
 tileMap = """
 WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
@@ -88,6 +97,7 @@ W T        T         T   W  T         T        T  W
 W                        W                        W
 W                        W                        W
 WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW"""
+tileMap = tileMap.splitlines()
 
 
 def checkWallVertical(sameX, belowY, aboveY):
@@ -112,7 +122,7 @@ def checkWallHorizontal(sameY, leftX, rightX):
 
 class Player(pygame.sprite.Sprite):
 
-    def __init__(self, x, y, ind):
+    def __init__(self, x, y, targetInd, genomeNum):
         # Call the parent's constructor
         pygame.sprite.Sprite.__init__(self)
 
@@ -122,13 +132,14 @@ class Player(pygame.sprite.Sprite):
         self.rect = Rect(x, y, PLAYER_SIZE, PLAYER_SIZE)
         self.width = PLAYER_SIZE
         self.height = PLAYER_SIZE
+        self.genomeNum = genomeNum
         self.x = x
         self.y = y
         self.targetX = x
         self.targetY = y
         self.vx = 0
-        self.index = ind
-        self.targetIndex = ind
+        self.index = targetInd
+        self.targetIndex = targetInd
         self.score = 0
         self.vy = 0
         self.vel = PLAYER_VEL
@@ -138,7 +149,7 @@ class Player(pygame.sprite.Sprite):
     def newInputs(self, pressed):
         finding = True
 
-        if pressed[K_w]:
+        if pressed[0] == 1:
             i = self.index - 1
             while i >= 0:
                 corner = cornerList[i]
@@ -161,7 +172,7 @@ class Player(pygame.sprite.Sprite):
                     i -= 1
 
 
-        elif pressed[K_a]:
+        elif pressed[1] == 1:
             if self.index == PORTAL1_IND:
                 self.x = cornerList[PORTAL2_IND].x
                 self.y = cornerList[PORTAL2_IND].y
@@ -192,7 +203,7 @@ class Player(pygame.sprite.Sprite):
                 else:
                     i -= 1
 
-        elif pressed[K_s]:
+        elif pressed[2] == 1:
 
             i = self.index + 1
             while i < len(cornerList):
@@ -215,7 +226,7 @@ class Player(pygame.sprite.Sprite):
                 else:
                     i += 1
 
-        elif pressed[K_d]:
+        elif pressed[3] == 1:
             if self.index == PORTAL2_IND:
                 self.x = cornerList[PORTAL1_IND].x
                 self.y = cornerList[PORTAL1_IND].y
@@ -302,12 +313,16 @@ class Player(pygame.sprite.Sprite):
             if pygame.sprite.collide_rect(self, treat):
                 self.score += 1
                 treatList.remove(treat)
+                return 1
+        return 0
 
     def Death(self):
 
         for enemy in enemyList:
             if pygame.sprite.collide_rect(self, enemy):
                 self.score -= 1
+                return True
+        return False
 
     def updatePosition(self, pressed):
 
@@ -472,7 +487,7 @@ class Enemy(pygame.sprite.Sprite):
         self.posMoves = [-1, -1, -1, -1]
         ctr = 0
         i = self.index - 1
-        while i >= 0 and ctr<=15:
+        while i >= 0 and ctr <= 15:
             ctr += 1
             corner = cornerList[i]
             if corner.x == self.x and corner.y < self.y:
@@ -609,8 +624,6 @@ class Enemy(pygame.sprite.Sprite):
         return
 
 
-
-
 class Corner():
     def __init__(self, x, y):
         pygame.sprite.Sprite.__init__(self)
@@ -646,13 +659,17 @@ def distance(x1, y1, x2, y2):
 
 
 def MakeTreats(_tileMap):
+    global treatList
+    treatList = []
     for y, line in enumerate(_tileMap):
         for x, c in enumerate(line):
-            if c == '0' or c =='T':
+            if c == '0' or c == 'T':
                 treatList.append(Treats(x * 12.5, y * 12.5))
 
 
 def MakeCorners(_tileMap):
+    global cornerList
+    cornerList = []
     for y, line in enumerate(_tileMap):
         for x, c in enumerate(line):
             if c == 'T':
@@ -661,6 +678,8 @@ def MakeCorners(_tileMap):
 
 def MakePortals(_tileMap):
     ind = 0
+    global portalList
+    portalList = []
     for y, line in enumerate(_tileMap):
         for x, c in enumerate(line):
             if c == 'X':
@@ -673,6 +692,8 @@ def MakePortals(_tileMap):
 
 
 def MakeWalls(_tileMap):
+    global wallList
+    wallList = []
     for y, line in enumerate(_tileMap):
         for x, c in enumerate(line):
             if c == 'W':
@@ -680,6 +701,7 @@ def MakeWalls(_tileMap):
 
 
 def DrawWindow(win, player, enemies):
+    global gen
     for wall in wallList:
         win.blit(wall.image, (wall.x, wall.y))
     for treat in treatList:
@@ -692,72 +714,65 @@ def DrawWindow(win, player, enemies):
         enemy.Draw(WINDOW)
 
     text = STAT_FONT.render("SCORE  " + str(player.score), 1, (255, 0, 0))
+    genText = STAT_FONT.render("GEN  " + str(gen), 1, (255, 0, 0))
     WINDOW.blit(text, (10, 700))
+    WINDOW.blit(genText, (10, 750))
     # Render player
     win.blit(player.image, (player.x, player.y))
     pygame.display.update()
 
 
-def main():
+
+
+
+
+def eval_genomes(genomes, config):
+
+    nets = []  # Neural nets for all the birds
+    ge = []  # The bird neat variable with all the fitness and shit
+    global gen
+    gen += 1
+    for _, g in genomes:
+
+        g.fitness = 0
+        # For each Genome, create a new network
+        net = neat.nn.FeedForwardNetwork.create(g, config)
+        nets.append(net)
+        ge.append(g)
+
+    for _, g in genomes:
+        gameFunction(0, nets, ge)
+
+
+
+def gameFunction(genomeNum, nets, ge):
+    lastScoreTime = time.time()
     global FPSCLOCK, WINDOW, wallList, enemyList, tileMap, treatList
     pygame.init()
     random.seed()
 
+    fitness = 0
+
     FPSCLOCK = pygame.time.Clock()
 
-    WINDOW = pygame.display.set_mode((WINDOWWIDTH, WINDOWHEIGHT))
-    pygame.display.set_caption('Lembalo')
 
-    tileMap = tileMap.splitlines()
+    # pxarray = pygame.PixelArray(screensurf)
+    # print(pxarray)
+
+    enemyList = []
     MakeTreats(tileMap)
     MakeCorners(tileMap)
     MakeWalls(tileMap)
     MakePortals(tileMap)
-    player = Player(cornerList[10].x, cornerList[10].y, 10)
+
+    spawnIndex = random.randint(0, len(cornerList))
+    player = Player(cornerList[spawnIndex].x, cornerList[spawnIndex].y, spawnIndex, genomeNum)
 
     enemy1 = Enemy(cornerList[31].x, cornerList[31].y, ENEMY_IND, 1)
     enemyList.append(enemy1)
 
-    # wallList = [
-    #     # Mid line
-    #     # Wall(0,400, 600, WALL_THICKNESS),
-    #     Wall(290, 0, WALL_THICKNESS, 100),
-    #     Wall(290, 700, WALL_THICKNESS, 100),
-    #     # Boundary
-    #     Wall(0, 0, WALL_THICKNESS, WINDOWHEIGHT),
-    #     Wall(0, 0, WINDOWWIDTH, WALL_THICKNESS),
-    #     Wall(WINDOWWIDTH - WALL_THICKNESS, 0, WALL_THICKNESS, WINDOWHEIGHT),
-    #     Wall(0, WINDOWHEIGHT - WALL_THICKNESS, WINDOWWIDTH, WALL_THICKNESS),
-    #
-    #     # Left portal 1
-    #     Wall(0, 300, 100, WALL_THICKNESS),
-    #     Wall(100, 300, WALL_THICKNESS, 70),
-    #     Wall(0, 360, 100, WALL_THICKNESS),
-    #
-    #     # Left Portal 2
-    #     Wall(0, 140 + 300, 100, WALL_THICKNESS),
-    #     Wall(100, 140 + 300, WALL_THICKNESS, 70),
-    #     Wall(0, 140 + 360, 100, WALL_THICKNESS),
-    #
-    #     # Right portal 1
-    #     Wall(0 + 500, 300, 100, WALL_THICKNESS),
-    #     Wall(100 + 400, 300, WALL_THICKNESS, 70),
-    #     Wall(0 + 500, 360, 100, WALL_THICKNESS),
-    #
-    #     # Right Portal 2
-    #     Wall(0 + 500, 140 + 300, 100, WALL_THICKNESS),
-    #     Wall(100 + 400, 140 + 300, WALL_THICKNESS, 70),
-    #     Wall(0 + 500, 140 + 360, 100, WALL_THICKNESS),
-    #
-    #     # Mid Box
-    #     Wall(240, 365, 110, WALL_THICKNESS),
-    #     Wall(230, 365, WALL_THICKNESS, 80),
-    #     Wall(240, 435, 110, WALL_THICKNESS),
-    #     Wall(350, 365, WALL_THICKNESS, 80)
-    # ]
-
     while True:
-
+        mvtInputs = [0, 0, 0, 0]
         WINDOW.fill(WHITE)  # Drawing the window
 
         for event in pygame.event.get():  # Event handling
@@ -765,16 +780,79 @@ def main():
                 pygame.quit()
                 sys.exit()
 
+        screensurf = pygame.display.get_surface()
+        pixelArray = pygame.surfarray.pixels2d(screensurf)
+
+        output = nets[genomeNum].activate((player.x, player.y, enemy1.x, enemy1.y, *pixelArray))
+        del pixelArray
+
+        res = output.index(max(output))
+
         pressed = pygame.key.get_pressed()
         DrawWindow(WINDOW, player, enemyList)
 
-        player.updatePosition(pressed)
+
+
+
+
+        # if pressed[K_w]:
+        #     mvtInputs = [1, 0, 0, 0]
+        # elif pressed[K_a]:
+        #     mvtInputs = [0, 1, 0, 0]
+        # elif pressed[K_s]:
+        #     mvtInputs = [0, 0, 1, 0]
+        # elif pressed[K_d]:
+        #     mvtInputs = [0, 0, 0, 1]
+
+        if res == 0:
+            mvtInputs = [1, 0, 0, 0]
+        elif res == 1:
+            mvtInputs = [0, 1, 0, 0]
+        elif res == 2:
+            mvtInputs = [0, 0, 1, 0]
+        elif res == 3:
+            mvtInputs = [0, 0, 0, 1]
+        else:
+            mvtInputs = [0, 0, 0, 0]
+
+        player.updatePosition(mvtInputs)
         enemy1.updatePosition(player.targetX, player.targetY)
-        player.updateScore()
-        player.Death()
+        if player.updateScore():
+            ge[genomeNum].fitness += 5
+            lastScoreTime = time.time()
+        else:
+            if time.time() - lastScoreTime > 60:
+                ge[genomeNum].fitness -= 10
+                ge.pop(genomeNum)
+                nets.pop(genomeNum)
+                return
+
+        ge[genomeNum].fitness += 0.1
+        if player.Death():
+            ge[genomeNum].fitness -= 10
+            ge.pop(genomeNum)
+            nets.pop(genomeNum)
+            return
 
         FPSCLOCK.tick(FPS)
 
 
+
+def run(config_file):
+    config = neat.config.Config(neat.DefaultGenome, neat.DefaultReproduction,
+                                neat.DefaultSpeciesSet, neat.DefaultStagnation,
+                                config_file)
+
+    p = neat.Population(config)
+
+    p.add_reporter(neat.StdOutReporter(True))
+    stats = neat.StatisticsReporter()
+    p.add_reporter(stats)
+
+    winner = p.run(eval_genomes, 50)
+
+
 if __name__ == '__main__':
-    main()
+    local_dir = os.path.dirname(__file__)
+    config_path = os.path.join(local_dir, 'config-feedforward.txt')
+    run(config_path)
