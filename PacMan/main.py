@@ -882,14 +882,22 @@ def distance(x1, y1, x2, y2):
     return res
 
 
-def MakeTreats(_tileMap):
-    global treatList
-    treatList = []
-    i = 0
-    for y, line in enumerate(_tileMap):
-        for x, c in enumerate(line):
-            if c == '0' or c == 'T':
-                treatList.append(Treats(x * 12.5, y * 12.5))
+def MakeTreats(_tileMap, num):
+
+    global treatList, allTreatLists
+
+    allTreatLists = []
+
+    for i in range(num):
+
+        treatList = []
+        for y, line in enumerate(_tileMap):
+            for x, c in enumerate(line):
+                if c == '0' or c == 'T':
+                    treatList.append(Treats(x * 12.5, y * 12.5))
+
+        allTreatLists.append(treatList)
+    print(len(allTreatLists))
 
 
 
@@ -986,7 +994,9 @@ def eval_genomes(genomes, config):
     ge = []  # The bird neat variable with all the fitness and shit
     global gen
     gen += 1
+    num = 0
     for _, g in genomes:
+        num += 1
         g.fitness = 0
         # For each Genome, create a new network
 
@@ -1007,6 +1017,7 @@ def eval_genomes(genomes, config):
     # pxarray = pygame.PixelArray(screensurf)
     # print(pxarray)
 
+
     allTreatLists = []
     enemyList = []
     playerList = []
@@ -1015,16 +1026,17 @@ def eval_genomes(genomes, config):
     MakeWalls(tileMap)
     MakePortals(tileMap)
 
-    MakeTreats(tileMap)
+    MakeTreats(tileMap, num)
 
     timeCtr = []
     genomeNum = 0
     for g in ge:
-        allTreatLists.append(treatList)
+
         spawnIndex = random.randint(0, len(cornerList) - 1)
         color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
         player = Player(cornerList[spawnIndex].x, cornerList[spawnIndex].y, spawnIndex, genomeNum, color)
         genomeNum += 1
+
         playerList.append(player)
         timeCtr.append(0)
 
@@ -1033,7 +1045,14 @@ def eval_genomes(genomes, config):
 
     while True:
 
-
+        # print(len(allTreatLists))
+        # for list in allTreatLists:
+        #     ctr = 0
+        #     for treat in list:
+        #         if not treat.eaten:
+        #             ctr += 1
+        #     print(ctr)
+        # print("")
         mvtInputs = [0, 0, 0, 0]
         WINDOW.fill(WHITE)  # Drawing the window
 
