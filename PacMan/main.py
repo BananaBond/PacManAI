@@ -32,7 +32,6 @@ RED = (255, 0, 0, 255)
 GREEN = (0, 255, 0, 255)
 YELLOW = (255, 255, 0, 255)
 
-
 # Key Constants
 UP = 'up'
 DOWN = 'down'
@@ -139,7 +138,6 @@ class Player(pygame.sprite.Sprite):
 
         self.color = playerColor
 
-
         self.image.fill(self.color)
         self.rect = Rect(x, y, PLAYER_SIZE, PLAYER_SIZE)
         self.width = PLAYER_SIZE
@@ -166,7 +164,6 @@ class Player(pygame.sprite.Sprite):
         self.color[3] = newAlpha
 
         self.image.fill(self.color)
-
 
     def calcTreatsAround(self):
 
@@ -265,7 +262,6 @@ class Player(pygame.sprite.Sprite):
                 i += 1
 
     def calcPosMoves(self):
-
 
         self.posMoves = [-1, -1, -1, -1]
         ctr = 0
@@ -526,7 +522,6 @@ class Player(pygame.sprite.Sprite):
 
     def updateScore(self):
 
-
         myTreatList = allTreatLists[self.genomeNum]
         for treat in myTreatList:
             if treat.x == self.x and treat.y == self.y and not treat.eaten:
@@ -616,6 +611,7 @@ class Treats(pygame.sprite.Sprite):
     def updateColor(self, newColor):
         self.color = newColor
         self.image.fill(self.color)
+
 
 class Portal():
 
@@ -883,7 +879,6 @@ def distance(x1, y1, x2, y2):
 
 
 def MakeTreats(_tileMap, num):
-
     global treatList, allTreatLists
 
     allTreatLists = []
@@ -897,8 +892,6 @@ def MakeTreats(_tileMap, num):
                     treatList.append(Treats(x * 12.5, y * 12.5))
 
         allTreatLists.append(treatList)
-    print(len(allTreatLists))
-
 
 
 def MakeCorners(_tileMap):
@@ -951,7 +944,7 @@ def DrawWindow(win, players, enemies, maxPlayerInd):
     for enemy in enemies:
         enemy.Draw(WINDOW)
     textColor = players[maxPlayerInd].color
-    text2 = STAT_FONT.render("PLAYER  " + str(maxPlayerInd) , 1, textColor)
+    text2 = STAT_FONT.render("PLAYER  " + str(maxPlayerInd), 1, textColor)
     text = STAT_FONT.render("SCORE  " + str(playerList[maxPlayerInd].score), 1, textColor)
     genText = STAT_FONT.render("GEN  " + str(gen), 1, textColor)
     WINDOW.blit(text2, (10, 650))
@@ -989,17 +982,17 @@ def DrawWindow(win, players, enemies, maxPlayerInd):
 
 
 def eval_genomes(genomes, config):
-
     nets = []  # Neural nets for all the birds
     ge = []  # The bird neat variable with all the fitness and shit
     global gen
     gen += 1
     num = 0
+    res = []
     for _, g in genomes:
         num += 1
         g.fitness = 0
         # For each Genome, create a new network
-
+        res.append(-1)
         net = neat.nn.FeedForwardNetwork.create(g, config)
         nets.append(net)
         ge.append(g)
@@ -1017,7 +1010,6 @@ def eval_genomes(genomes, config):
     # pxarray = pygame.PixelArray(screensurf)
     # print(pxarray)
 
-
     allTreatLists = []
     enemyList = []
     playerList = []
@@ -1031,7 +1023,6 @@ def eval_genomes(genomes, config):
     timeCtr = []
     genomeNum = 0
     for g in ge:
-
         spawnIndex = random.randint(0, len(cornerList) - 1)
         color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
         player = Player(cornerList[spawnIndex].x, cornerList[spawnIndex].y, spawnIndex, genomeNum, color)
@@ -1069,63 +1060,67 @@ def eval_genomes(genomes, config):
 
         for x, player in enumerate(playerList):
 
-            for enemy in enemyList:
-                # Enemy above
-                if player.x == enemy.x:
-                    if enemy.y < player.y:
-                        offset = player.y - enemy.y
-                        if offset < WALL_CHECK_OFFSET:
-                            netInputs[0] = 1
-
-                    # Enemy below
-                    if enemy.y > player.y:
-                        offset = player.y - enemy.y
-                        if offset < WALL_CHECK_OFFSET:
-                            netInputs[2] = 1
-
-                # Enemy on the left
-                if player.y == enemy.y:
-                    if enemy.x < player.x:
-                        offset = player.x - enemy.x
-                        if offset < WALL_CHECK_OFFSET:
-                            netInputs[1] = 1
-                    # Enemy on Right
-                    if enemy.x > player.x:
-                        offset = player.x - enemy.x
-                        if offset < WALL_CHECK_OFFSET:
-                            netInputs[3] = 1
-            #  Wall
             player.calcPosMoves()
             player.calcTreatsAround()
 
             # print(*player.posMoves)
             i = 0
             for move in player.posMoves:
-                netInputs[4+i] = player.posMoves[i]
+                netInputs[i] = player.posMoves[i]
                 i += 1
-
 
             i = 0
             for treat in player.posTreats:
-                netInputs[8+i] = player.posTreats[i]
+                netInputs[4 + i] = player.posTreats[i]
                 i += 1
+
+            for enemy in enemyList:
+                # Enemy above
+                if player.x == enemy.x:
+                    if enemy.y < player.y:
+                        offset = player.y - enemy.y
+                        if offset < WALL_CHECK_OFFSET:
+                            netInputs[8] = 1
+
+                    # Enemy below
+                    if enemy.y > player.y:
+                        offset = player.y - enemy.y
+                        if offset < WALL_CHECK_OFFSET:
+                            netInputs[10] = 1
+
+                # Enemy on the left
+                if player.y == enemy.y:
+                    if enemy.x < player.x:
+                        offset = player.x - enemy.x
+                        if offset < WALL_CHECK_OFFSET:
+                            netInputs[9] = 1
+                    # Enemy on Right
+                    if enemy.x > player.x:
+                        offset = player.x - enemy.x
+                        if offset < WALL_CHECK_OFFSET:
+                            netInputs[11] = 1
+            #  Wall
 
             for i, ip in enumerate(netInputs):
                 if ip is 0:
                     netInputs[i] = -1
 
             output = nets[x].activate((*netInputs,))
-
-
+            #
+            # print("Player = " + str(x))
+            # print(*netInputs)
+            # print(*output)
+            # print (" Score = " + str(player.score))
             # del pixelArray
             if max(output) > 0.5:
 
-                res = output.index(max(output))
+                res[x] = output.index(max(output))
+                # print("res = " + str(res))
             else:
-                res = -1
+                res[x] = -1
 
         # pressed = pygame.key.get_pressed()
-        DrawWindow(WINDOW, playerList, enemyList, 0)
+        DrawWindow(WINDOW, playerList, enemyList, 1)
 
         # if pressed[K_w]:
         #     mvtInputs = [1, 0, 0, 0]
@@ -1136,18 +1131,17 @@ def eval_genomes(genomes, config):
         # elif pressed[K_d]:
         #     mvtInputs = [0, 0, 0, 1]
 
-        if res == 0:
-            mvtInputs = [1, 0, 0, 0]
-        elif res == 1:
-            mvtInputs = [0, 1, 0, 0]
-        elif res == 2:
-            mvtInputs = [0, 0, 1, 0]
-        elif res == 3:
-            mvtInputs = [0, 0, 0, 1]
-        else:
-            mvtInputs = [0, 0, 0, 0]
-
         for x, player in enumerate(playerList):
+            if res[x] == 0:
+                mvtInputs = [1, 0, 0, 0]
+            elif res[x] == 1:
+                mvtInputs = [0, 1, 0, 0]
+            elif res[x] == 2:
+                mvtInputs = [0, 0, 1, 0]
+            elif res[x] == 3:
+                mvtInputs = [0, 0, 0, 1]
+            else:
+                mvtInputs = [0, 0, 0, 0]
             player.updatePosition(mvtInputs)
             # enemy1.updatePosition(player.targetX, player.targetY)
             if player.updateScore():
@@ -1155,7 +1149,7 @@ def eval_genomes(genomes, config):
                 timeCtr[x] = 0
             else:
                 timeCtr[x] += 0.1
-                # ge[x].fitness -= 0.1*timeCtr
+                ge[x].fitness -= 0.05
                 if timeCtr[x] > 60:
                     playerList.pop(x)
                     allTreatLists.pop(x)
@@ -1172,7 +1166,6 @@ def eval_genomes(genomes, config):
                 ge.pop(x)
                 nets.pop(x)
                 return
-
 
         FPSCLOCK.tick(FPS)
 
