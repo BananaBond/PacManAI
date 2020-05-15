@@ -157,6 +157,7 @@ class Player(pygame.sprite.Sprite):
         self.moving = False
         self.posMoves = [0, 0, 0, 0]
         self.posTreats = [0, 0, 0, 0]
+        self.posMovesInd = [-1, -1, -1, -1]
 
     def updateAlpha(self, newAlpha):
         self.alpha = newAlpha
@@ -264,6 +265,7 @@ class Player(pygame.sprite.Sprite):
     def calcPosMoves(self):
 
         self.posMoves = [-1, -1, -1, -1]
+        self.posMovesInd = [-1, -1, -1, -1]
         ctr = 0
 
         i = self.index - 1
@@ -280,6 +282,7 @@ class Player(pygame.sprite.Sprite):
                     if not checkWallVertical(self.x, self.y, corner.y):
                         # self.y = corner.y
                         self.posMoves[0] = 1
+                        self.posMovesInd[0] = i
                         break
 
 
@@ -304,6 +307,7 @@ class Player(pygame.sprite.Sprite):
                     if not checkWallHorizontal(corner.y, corner.x, self.x):
                         # self.x = corner.x
                         self.posMoves[1] = 1
+                        self.posMovesInd[1] = i
                         break
 
             else:
@@ -324,6 +328,7 @@ class Player(pygame.sprite.Sprite):
                     if not checkWallVertical(self.x, corner.y, self.y):
                         # self.y = corner.y
                         self.posMoves[2] = 1
+                        self.posMovesInd[2] = i
                         break
 
             else:
@@ -347,6 +352,7 @@ class Player(pygame.sprite.Sprite):
                     if not checkWallHorizontal(self.y, self.x, corner.x):
                         # self.x = corner.x
                         self.posMoves[3] = 1
+                        self.posMovesInd[3] = i
                         break
 
 
@@ -1033,17 +1039,10 @@ def eval_genomes(genomes, config):
 
     enemy1 = Enemy(cornerList[31].x, cornerList[31].y, ENEMY_IND, 1)
     enemyList.append(enemy1)
+    maxPlayer = 0
 
     while True:
 
-        # print(len(allTreatLists))
-        # for list in allTreatLists:
-        #     ctr = 0
-        #     for treat in list:
-        #         if not treat.eaten:
-        #             ctr += 1
-        #     print(ctr)
-        # print("")
         mvtInputs = [0, 0, 0, 0]
         WINDOW.fill(WHITE)  # Drawing the window
 
@@ -1052,9 +1051,6 @@ def eval_genomes(genomes, config):
                 pygame.quit()
                 sys.exit()
 
-        # screensurf = pygame.display.get_surface()
-        # pixelArray = pygame.surfarray.pixels2d(screensurf)
-
         # Inputs 0-3
         # Enemy
 
@@ -1062,7 +1058,7 @@ def eval_genomes(genomes, config):
 
             player.calcPosMoves()
             player.calcTreatsAround()
-
+            netInputs = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
             # print(*player.posMoves)
             i = 0
             for move in player.posMoves:
@@ -1076,42 +1072,44 @@ def eval_genomes(genomes, config):
 
             for enemy in enemyList:
                 # Enemy above
-                if player.x == enemy.x:
-                    if enemy.y < player.y:
-                        offset = player.y - enemy.y
-                        if offset < WALL_CHECK_OFFSET:
-                            netInputs[8] = 1
+                if player.posMoves[0] == 1:
+                    if enemy.index == player.posMovesInd[0]:
+                        netInputs[8] = 1
 
                     # Enemy below
-                    if enemy.y > player.y:
-                        offset = player.y - enemy.y
-                        if offset < WALL_CHECK_OFFSET:
-                            netInputs[10] = 1
+                    if player.posMoves[1] == 1:
+                        if enemy.index == player.posMovesInd[1]:
+                            netInputs[9] = 1
 
                 # Enemy on the left
-                if player.y == enemy.y:
-                    if enemy.x < player.x:
-                        offset = player.x - enemy.x
-                        if offset < WALL_CHECK_OFFSET:
-                            netInputs[9] = 1
+                if player.posMoves[2] == 1:
+                    if enemy.index == player.posMovesInd[2]:
+                        netInputs[10] = 1
                     # Enemy on Right
-                    if enemy.x > player.x:
-                        offset = player.x - enemy.x
-                        if offset < WALL_CHECK_OFFSET:
+                    if player.posMoves[3] == 1:
+                        if enemy.index == player.posMovesInd[3]:
                             netInputs[11] = 1
             #  Wall
 
             for i, ip in enumerate(netInputs):
-                if ip is 0:
-                    netInputs[i] = -1
+                if ip is -1:
+                    netInputs[i] = 0
 
             output = nets[x].activate((*netInputs,))
             #
+            # print(len(allTreatLists))
+
+            ctr = 0
+            for treat in allTreatLists[x]:
+                if not treat.eaten:
+                    ctr += 1
+
             # print("Player = " + str(x))
             # print(*netInputs)
             # print(*output)
-            # print (" Score = " + str(player.score))
-            # del pixelArray
+            # print(" Score = " + str(player.score))
+            # print("Len of eaten treats = " + str(68 - ctr))
+
             if max(output) > 0.5:
 
                 res[x] = output.index(max(output))
@@ -1119,8 +1117,12 @@ def eval_genomes(genomes, config):
             else:
                 res[x] = -1
 
+        for x, player in enumerate(playerList):
+            if player.score > playerList[maxPlayer].score:
+                maxPlayer = x
+
         # pressed = pygame.key.get_pressed()
-        DrawWindow(WINDOW, playerList, enemyList, 1)
+        DrawWindow(WINDOW, playerList, enemyList, maxPlayer)
 
         # if pressed[K_w]:
         #     mvtInputs = [1, 0, 0, 0]
