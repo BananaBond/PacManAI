@@ -10,7 +10,7 @@ import neat
 # Set FPS
 FPS = 30
 
-gen = 0
+gen = -1
 
 # Window Dimensions
 WINDOWWIDTH = 638
@@ -166,29 +166,35 @@ class Player(pygame.sprite.Sprite):
 
         self.image.fill(self.color)
 
-    def calcTreatsAround(self):
+    def calcTreatsAround(self, index):
 
         # If you add more treats you have to change the start index way for i here
 
         myTreatList = allTreatLists[self.genomeNum]
-        self.posTreats = [-1, -1, -1, -1]
+
+        posTreatsInd = [-1, -1, -1, -1]
+        posTreats = [-1, -1, -1, -1]
+        x = cornerList[index].x
+        y = cornerList[index].y
+
         ctr = 0
 
-        i = self.index - 1
+        i = index - 1
         while i >= 0 and ctr <= 15:
             ctr += 1
             treat = myTreatList[i]
-            if treat.x == self.x and treat.y < self.y:
-                offset = self.y - treat.y
+            if treat.x == x and treat.y < y:
+                offset = y - treat.y
                 if offset > WALL_CHECK_OFFSET:
                     i -= 1
                     continue
                 else:
 
-                    if not checkWallVertical(self.x, self.y, treat.y):
+                    if not checkWallVertical(x, y, treat.y):
                         # self.y = corner.y
                         if not treat.eaten:
-                            self.posTreats[0] = 1
+                            posTreats[0] = 1
+                            posTreatsInd[0] = 1
 
                         break
             else:
@@ -198,42 +204,44 @@ class Player(pygame.sprite.Sprite):
         #     self.posMoves[1] = 1
 
         ctr = 0
-        i = self.index - 1
+        i = index - 1
         while i >= 0 and ctr < 15:
             ctr += 1
             treat = myTreatList[i]
-            if treat.y == self.y and treat.x < self.x:
-                offset = treat.x - self.x
+            if treat.y == y and treat.x < x:
+                offset = treat.x - x
                 if offset > WALL_CHECK_OFFSET:
                     i -= 1
                     continue
                 else:
 
-                    if not checkWallHorizontal(treat.y, treat.x, self.x):
+                    if not checkWallHorizontal(treat.y, treat.x, x):
                         # self.x = corner.x
                         if not treat.eaten:
-                            self.posTreats[1] = 1
+                            posTreats[1] = 1
+                            posTreatsInd[1] = 1
                         break
 
             else:
                 i -= 1
 
         ctr = 0
-        i = self.index + 1
+        i = index + 1
         while i < len(myTreatList) and ctr < 15:
             ctr += 1
             treat = myTreatList[i]
-            if treat.x == self.x and treat.y > self.y:
-                offset = treat.y - self.y
+            if treat.x == x and treat.y > y:
+                offset = treat.y - y
                 if offset > WALL_CHECK_OFFSET:
                     i += 1
                     continue
                 else:
 
-                    if not checkWallVertical(self.x, treat.y, self.y):
+                    if not checkWallVertical(x, treat.y, y):
                         # self.y = corner.y
                         if not treat.eaten:
-                            self.posTreats[2] = 1
+                            posTreats[2] = 1
+                            posTreatsInd[2] = 1
                         break
 
             else:
@@ -243,121 +251,155 @@ class Player(pygame.sprite.Sprite):
         #     self.posTreats[3] = 1
 
         ctr = 0
-        i = self.index + 1
+        i = index + 1
         while i < len(myTreatList) and ctr <= 15:
             ctr += 1
             treat = myTreatList[i]
-            if treat.y == self.y and treat.x > self.x:
-                offset = self.x - treat.x
+            if treat.y == y and treat.x > x:
+                offset = x - treat.x
                 if offset > WALL_CHECK_OFFSET:
                     i += 1
                     continue
                 else:
 
-                    if not checkWallHorizontal(self.y, self.x, treat.x):
+                    if not checkWallHorizontal(y, x, treat.x):
                         # self.x = corner.x
                         if not treat.eaten:
-                            self.posTreats[3] = 1
+                            posTreats[3] = 1
+                            posTreatsInd[3] = 1
                         break
             else:
                 i += 1
 
-    def calcPosMoves(self):
+        if self.index == index:
+            self.posTreats = posTreats
+        return posTreats, posTreatsInd
 
-        self.posMoves = [-1, -1, -1, -1]
-        self.posMovesInd = [-1, -1, -1, -1]
+
+    def calcPosMoves(self, index):
+
+        x = cornerList[index].x
+        y = cornerList[index].y
+        posMoves = [-1, -1, -1, -1]
+        posMovesInd = [-1, -1, -1, -1]
+        posTreats = [0, 0, 0, 0]
+
         ctr = 0
-
-        i = self.index - 1
+        keepGoing = True
+        i = index - 1
         while i >= 0 and ctr <= 15:
             ctr += 1
             corner = cornerList[i]
-            if corner.x == self.x and corner.y < self.y:
-                offset = self.y - corner.y
+            if corner.x == x and corner.y < y:
+                offset = y - corner.y
                 if offset > WALL_CHECK_OFFSET:
                     i -= 1
                     continue
                 else:
 
-                    if not checkWallVertical(self.x, self.y, corner.y):
+                    if not checkWallVertical(x, y, corner.y):
                         # self.y = corner.y
-                        self.posMoves[0] = 1
-                        self.posMovesInd[0] = i
+                        posMoves[0] = 1
+                        posMovesInd[0] = i
+                        if not treatList[i].eaten:
+                            posTreats[0] = 1
+
                         break
 
 
             else:
                 i -= 1
 
-        if self.index == PORTAL1_IND:
-            self.posMoves[1] = 1
+        if index == PORTAL1_IND:
+            posMoves[1] = 1
+            posMovesInd[1] = PORTAL2_IND
+            if not treatList[index].eaten:
+                posTreats[1] = 1
 
         ctr = 0
-        i = self.index - 1
+        i = index - 1
         while i >= 0 and ctr < 15:
             ctr += 1
             corner = cornerList[i]
-            if corner.y == self.y and corner.x < self.x:
-                offset = corner.x - self.x
+            if corner.y == y and corner.x < x:
+                offset = corner.x - x
                 if offset > WALL_CHECK_OFFSET:
                     i -= 1
                     continue
                 else:
 
-                    if not checkWallHorizontal(corner.y, corner.x, self.x):
+                    if not checkWallHorizontal(corner.y, corner.x, x):
                         # self.x = corner.x
-                        self.posMoves[1] = 1
-                        self.posMovesInd[1] = i
+                        posMoves[1] = 1
+                        posMovesInd[1] = i
+                        if not treatList[i].eaten:
+                            posTreats[1] = 1
+
                         break
 
             else:
                 i -= 1
 
         ctr = 0
-        i = self.index + 1
+        i = index + 1
         while i < len(cornerList) and ctr < 15:
             ctr += 1
             corner = cornerList[i]
-            if corner.x == self.x and corner.y > self.y:
-                offset = corner.y - self.y
+            if corner.x == x and corner.y > y:
+                offset = corner.y - y
                 if offset > WALL_CHECK_OFFSET:
                     i += 1
                     continue
                 else:
 
-                    if not checkWallVertical(self.x, corner.y, self.y):
+                    if not checkWallVertical(x, corner.y, y):
                         # self.y = corner.y
-                        self.posMoves[2] = 1
-                        self.posMovesInd[2] = i
+                        posMoves[2] = 1
+                        posMovesInd[2] = i
+                        if not treatList[i].eaten:
+                            posTreats[2] = 1
+
                         break
 
             else:
                 i += 1
 
-        if self.index == PORTAL2_IND:
-            self.posMoves[3] = 1
+        if index == PORTAL2_IND:
+            posMoves[3] = 1
+            posMovesInd[3] = PORTAL1_IND
+            if not treatList[index].eaten:
+                posTreats[3] = 1
 
         ctr = 0
-        i = self.index + 1
+        i = index + 1
         while i < len(cornerList) and ctr <= 15:
             ctr += 1
             corner = cornerList[i]
-            if corner.y == self.y and corner.x > self.x:
-                offset = self.x - corner.x
+            if corner.y == y and corner.x > x:
+                offset = x - corner.x
                 if offset > WALL_CHECK_OFFSET:
                     i += 1
                     continue
                 else:
 
-                    if not checkWallHorizontal(self.y, self.x, corner.x):
+                    if not checkWallHorizontal(y, x, corner.x):
                         # self.x = corner.x
-                        self.posMoves[3] = 1
-                        self.posMovesInd[3] = i
+                        posMoves[3] = 1
+                        posMovesInd[3] = i
+                        if not treatList[i].eaten:
+                            posTreats[3] = 1
+
                         break
 
 
             else:
                 i += 1
+
+        if self.index == index:
+            self.posMoves = posMoves
+            self.posMovesInd = posMovesInd
+
+        return posMoves, posMovesInd, posTreats
 
     def newInputs(self, pressed):
         finding = True
@@ -1013,9 +1055,6 @@ def eval_genomes(genomes, config):
 
     FPSCLOCK = pygame.time.Clock()
 
-    # pxarray = pygame.PixelArray(screensurf)
-    # print(pxarray)
-
     allTreatLists = []
     enemyList = []
     playerList = []
@@ -1056,19 +1095,35 @@ def eval_genomes(genomes, config):
 
         for x, player in enumerate(playerList):
 
-            player.calcPosMoves()
-            player.calcTreatsAround()
-            netInputs = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            netInputs = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+
+
+            for i in range(4):
+                pseudoMoves, pseudoPosMovesInd, posTreats = player.calcPosMoves(player.index)
+                ind = pseudoPosMovesInd[i]
+                while pseudoMoves[i] is 1:
+                    if not treatList[ind].eaten:
+                        netInputs[4+i] += 1
+
+                    # if x == maxPlayer:
+                    #     print("True " + str(i))
+
+                    netInputs[i] += 1
+                    pseudoMoves, pseudoPosMovesInd, posTreats = player.calcPosMoves(ind)
+                    ind = pseudoPosMovesInd[i]
+
+            player.calcTreatsAround(player.index)
+
             # print(*player.posMoves)
             i = 0
-            for move in player.posMoves:
-                netInputs[i] = player.posMoves[i]
-                i += 1
+            # for move in player.posMoves:
+            #     netInputs[i] = player.posMoves[i]
+            #     i += 1
 
             i = 0
-            for treat in player.posTreats:
-                netInputs[4 + i] = player.posTreats[i]
-                i += 1
+            # for treat in player.posTreats:
+            #     netInputs[4 + i] = player.posTreats[i]
+            #     i += 1
 
             for enemy in enemyList:
                 # Enemy above
@@ -1095,6 +1150,8 @@ def eval_genomes(genomes, config):
                 if ip is -1:
                     netInputs[i] = 0
 
+            netInputs[12] = len(allTreatLists[0]) - player.score
+
             output = nets[x].activate((*netInputs,))
             #
             # print(len(allTreatLists))
@@ -1103,12 +1160,12 @@ def eval_genomes(genomes, config):
             for treat in allTreatLists[x]:
                 if not treat.eaten:
                     ctr += 1
-
-            # print("Player = " + str(x))
-            # print(*netInputs)
-            # print(*output)
-            # print(" Score = " + str(player.score))
-            # print("Len of eaten treats = " + str(68 - ctr))
+            if x == maxPlayer:
+                print("Player = " + str(x))
+                print(*netInputs)
+                print(*output)
+                # print(" Score = " + str(player.score))
+                # print("Len of eaten treats = " + str(68 - ctr))
 
             if max(output) > 0.5:
 
