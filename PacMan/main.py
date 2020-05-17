@@ -983,7 +983,7 @@ def MakeWalls(_tileMap):
                 wallList.append(Wall(x * 12.5, y * 12.5, 12.5, 12.5))
 
 
-def DrawWindow(win, players, enemies, maxPlayerInd, numDead):
+def DrawWindow(win, players, enemies, maxPlayerInd, numDead, numAlive):
     global gen
     for wall in wallList:
         win.blit(wall.image, (wall.x, wall.y))
@@ -998,19 +998,21 @@ def DrawWindow(win, players, enemies, maxPlayerInd, numDead):
     text2 = STAT_FONT.render("PLAYER  " + str(maxPlayerInd), 1, textColor)
     text = STAT_FONT.render("SCORE  " + str(playerList[maxPlayerInd].score), 1, textColor)
     text3 = STAT_FONT.render("DEAD  " + str(numDead), 1, textColor)
+    text4 = STAT_FONT.render("ALIVE  " + str(numAlive), 1, textColor)
     genText = STAT_FONT.render("GEN  " + str(gen), 1, textColor)
     WINDOW.blit(text2, (10, 620))
     WINDOW.blit(text, (10, 650))
     WINDOW.blit(genText, (10, 680))
     WINDOW.blit(text3, (200, 620))
+    WINDOW.blit(text4, (200, 650))
     # Render player
     players[maxPlayerInd].alpha = 255
     x = 0
     for player in players:
-        if x is not maxPlayerInd:
-            win.blit(player.image, (player.x, player.y))
-        x += 1
-    win.blit(players[maxPlayerInd].image, (player.x, player.y))
+        # if x is not maxPlayerInd:
+        win.blit(player.image, (player.x, player.y))
+        # x += 1
+    # win.blit(players[maxPlayerInd].image, (player.x, player.y))
 
     for treat in allTreatLists[maxPlayerInd]:
         treat.updateColor(playerList[maxPlayerInd].color)
@@ -1020,21 +1022,7 @@ def DrawWindow(win, players, enemies, maxPlayerInd, numDead):
     pygame.display.update()
 
 
-# def eval_genomes(genomes, config):
-#     nets = []  # Neural nets for all the birds
-#     ge = []  # The bird neat variable with all the fitness and shit
-#     global gen
-#     gen += 1
-#     for _, g in genomes:
-#         g.fitness = 0
-#         # For each Genome, create a new network
-#
-#         net = neat.nn.FeedForwardNetwork.create(g, config)
-#         nets.append(net)
-#         ge.append(g)
-#
-#     for _, g in genomes:
-#         gameFunction(0, nets, ge)
+
 
 def softmax(arr):
 
@@ -1053,11 +1041,12 @@ def softmax(arr):
 def eval_genomes(genomes, config):
     nets = []  # Neural nets for all the birds
     ge = []  # The bird neat variable with all the fitness and shit
-    global gen, FPSCLOCK, WINDOW, wallList, enemyList, tileMap, treatList, allTreatLists, playerList, prevInputs
+    global gen, WINDOW, wallList, enemyList, tileMap, treatList, allTreatLists, playerList, prevInputs
     gen += 1
     num = 0
     res = []
     numDead = 0
+    numAlive = 0
     pseudoNetInputs = [0, 0, 0, 0, 0, 0, 0, 0, 0]
     prevInputs = []
     for _, g in genomes:
@@ -1070,13 +1059,10 @@ def eval_genomes(genomes, config):
         nets.append(net)
         ge.append(g)
 
-    lastScoreTime = time.time()
+
 
     pygame.init()
     random.seed()
-
-
-    FPSCLOCK = pygame.time.Clock()
 
     allTreatLists = []
     enemyList = []
@@ -1089,9 +1075,10 @@ def eval_genomes(genomes, config):
     MakeTreats(tileMap, num)
 
     timeCtr = []
+    spawnIndex = random.randint(0, len(cornerList) - 1)
     genomeNum = 0
     for g in ge:
-        spawnIndex = random.randint(0, len(cornerList) - 1)
+
         color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
         player = Player(cornerList[spawnIndex].x, cornerList[spawnIndex].y, spawnIndex, genomeNum, color)
         genomeNum += 1
@@ -1102,9 +1089,16 @@ def eval_genomes(genomes, config):
     enemy1 = Enemy(cornerList[31].x, cornerList[31].y, ENEMY_IND, 1)
     enemyList.append(enemy1)
     maxPlayer = 0
+    Run = True
+    while Run:
+        if len(playerList) <= 0:
+            Run = False
+            print("run false")
+            break
 
-    while True:
+        # print(str(len(playerList)) + " " + str(Run))
 
+        numAlive = len(playerList)
         mvtInputs = [0, 0, 0, 0]
         WINDOW.fill(WHITE)  # Drawing the window
 
@@ -1118,6 +1112,13 @@ def eval_genomes(genomes, config):
 
         for x, player in enumerate(playerList):
 
+            ge[x].fitness += 0.001
+            if player.updateScore():
+                ge[x].fitness += 5
+                timeCtr[x] = 0
+            else:
+                timeCtr[x] += 0.1
+                # ge[x].fitness -= 0.05
             netInputs = [0, 0, 0, 0, 0, 0, 0, 0, 0]
             # , 0, 0, 0, 0
 
@@ -1177,9 +1178,8 @@ def eval_genomes(genomes, config):
             #                 netInputs[11] = 1
             #  Wall
 
-            # for i, ip in enumerate(netInputs):
-            #     if ip is -1:
-            #         netInputs[i] = 0
+            for i, ip in enumerate(netInputs):
+                netInputs[i] *= 100
 
             netInputs[len(netInputs)-1] = len(allTreatLists[0]) - player.score
 
@@ -1189,7 +1189,19 @@ def eval_genomes(genomes, config):
                 prevInputs[x] = netInputs
 
             output = nets[x].activate((*netInputs,))
+
             out = softmax(output)
+            max = np.max(out)
+            maxList = [np.argmax(out)]
+            maxCtr = 0
+            for i in range(out.shape[0]):
+                if out[i] == max:
+
+                    maxCtr += 1
+                    maxList.append(i)
+
+
+
             # out = output
             #
             # print(len(allTreatLists))
@@ -1198,18 +1210,24 @@ def eval_genomes(genomes, config):
             for treat in allTreatLists[x]:
                 if not treat.eaten:
                     ctr += 1
-            if x == maxPlayer:
-                print("Player = " + str(x))
-                print(*netInputs)
-                print(*out)
-                print(ctr)
-                print(ge[x].fitness)
+            # if x == maxPlayer:
+                # print(timeCtr[x])
+                # print("Player = " + str(x))
+                # print(*netInputs)
+                # print(*out)
+                # print(ctr)
+                # print(ge[x].fitness)
                 # print(" Score = " + str(player.score))
                 # print("Len of eaten treats = " + str(68 - ctr))
 
             # if max(out) > 0.5:
 
-            res[x] = np.argmax(out)
+            if maxCtr is 0:
+                res[x] = np.argmax(out)
+            else:
+                res[x] = random.choice(maxList)
+                # if x is maxPlayer:
+                # print("More than one")
                 # print("res = " + str(res))
             # else:
             #     res[x] = -1
@@ -1219,7 +1237,7 @@ def eval_genomes(genomes, config):
                 maxPlayer = x
 
         # pressed = pygame.key.get_pressed()
-        DrawWindow(WINDOW, playerList, enemyList, maxPlayer, numDead)
+        DrawWindow(WINDOW, playerList, enemyList, maxPlayer, numDead, numAlive)
 
         # if pressed[K_w]:
         #     mvtInputs = [1, 0, 0, 0]
@@ -1243,32 +1261,33 @@ def eval_genomes(genomes, config):
                 mvtInputs = [0, 0, 0, 0]
             player.updatePosition(mvtInputs)
             # enemy1.updatePosition(player.targetX, player.targetY)
-            if player.updateScore():
-                ge[x].fitness += 5
-                timeCtr[x] = 0
-            else:
-                timeCtr[x] += 0.1
-                # ge[x].fitness -= 0.05
-                if timeCtr[x] > 60:
-                    playerList.pop(x)
-                    allTreatLists.pop(x)
-                    ge[x].fitness -= 10
-                    ge.pop(x)
-                    nets.pop(x)
-                    numDead += 1
-                    return
+
+            if timeCtr[x] > 60:
+
+                playerList.pop(x)
+                print(len(playerList))
+
+                ge[x].fitness -= 10
+                nets.pop(x)
+                ge.pop(x)
+
+                numDead += 1
+                continue
+
 
             # ge[genomeNum].fitness += 0.1
             if player.Death():
                 playerList.pop(x)
-                allTreatLists.pop(x)
+
                 ge[x].fitness -= 10
                 ge.pop(x)
                 nets.pop(x)
                 numDead += 1
-                return
+                continue
 
-        FPSCLOCK.tick(FPS)
+
+
+
 
 
 def run(config_file):
