@@ -6,6 +6,7 @@ import math
 import glob
 import time
 import neat
+import numpy as np
 
 # Set FPS
 FPS = 30
@@ -47,6 +48,8 @@ enemyList = []
 playerList = []
 cornerPos = []
 cornerPosFlat = []
+
+prevInputs = []
 
 pygame.font.init()
 STAT_FONT = pygame.font.SysFont("roboto", 30)
@@ -980,7 +983,7 @@ def MakeWalls(_tileMap):
                 wallList.append(Wall(x * 12.5, y * 12.5, 12.5, 12.5))
 
 
-def DrawWindow(win, players, enemies, maxPlayerInd):
+def DrawWindow(win, players, enemies, maxPlayerInd, numDead):
     global gen
     for wall in wallList:
         win.blit(wall.image, (wall.x, wall.y))
@@ -994,15 +997,20 @@ def DrawWindow(win, players, enemies, maxPlayerInd):
     textColor = players[maxPlayerInd].color
     text2 = STAT_FONT.render("PLAYER  " + str(maxPlayerInd), 1, textColor)
     text = STAT_FONT.render("SCORE  " + str(playerList[maxPlayerInd].score), 1, textColor)
+    text3 = STAT_FONT.render("DEAD  " + str(numDead), 1, textColor)
     genText = STAT_FONT.render("GEN  " + str(gen), 1, textColor)
-    WINDOW.blit(text2, (10, 650))
-    WINDOW.blit(text, (10, 700))
-    WINDOW.blit(genText, (10, 750))
+    WINDOW.blit(text2, (10, 620))
+    WINDOW.blit(text, (10, 650))
+    WINDOW.blit(genText, (10, 680))
+    WINDOW.blit(text3, (200, 620))
     # Render player
     players[maxPlayerInd].alpha = 255
-
+    x = 0
     for player in players:
-        win.blit(player.image, (player.x, player.y))
+        if x is not maxPlayerInd:
+            win.blit(player.image, (player.x, player.y))
+        x += 1
+    win.blit(players[maxPlayerInd].image, (player.x, player.y))
 
     for treat in allTreatLists[maxPlayerInd]:
         treat.updateColor(playerList[maxPlayerInd].color)
@@ -1028,30 +1036,45 @@ def DrawWindow(win, players, enemies, maxPlayerInd):
 #     for _, g in genomes:
 #         gameFunction(0, nets, ge)
 
+def softmax(arr):
+
+    arr = np.array(arr)
+
+    arr = arr/max(arr)
+
+    arr = np.exp(arr)
+    sum = np.sum(arr)
+
+    out = arr/sum
+
+    return out
+
 
 def eval_genomes(genomes, config):
     nets = []  # Neural nets for all the birds
     ge = []  # The bird neat variable with all the fitness and shit
-    global gen
+    global gen, FPSCLOCK, WINDOW, wallList, enemyList, tileMap, treatList, allTreatLists, playerList, prevInputs
     gen += 1
     num = 0
     res = []
+    numDead = 0
+    pseudoNetInputs = [0, 0, 0, 0, 0, 0, 0, 0, 0]
+    prevInputs = []
     for _, g in genomes:
         num += 1
         g.fitness = 0
         # For each Genome, create a new network
         res.append(-1)
+        prevInputs.append(pseudoNetInputs)
         net = neat.nn.FeedForwardNetwork.create(g, config)
         nets.append(net)
         ge.append(g)
 
     lastScoreTime = time.time()
-    global FPSCLOCK, WINDOW, wallList, enemyList, tileMap, treatList, allTreatLists, playerList
+
     pygame.init()
     random.seed()
-    netInputs = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
-    fitness = 0
 
     FPSCLOCK = pygame.time.Clock()
 
@@ -1095,15 +1118,20 @@ def eval_genomes(genomes, config):
 
         for x, player in enumerate(playerList):
 
-            netInputs = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            netInputs = [0, 0, 0, 0, 0, 0, 0, 0, 0]
+            # , 0, 0, 0, 0
 
 
             for i in range(4):
                 pseudoMoves, pseudoPosMovesInd, posTreats = player.calcPosMoves(player.index)
                 ind = pseudoPosMovesInd[i]
+                dis = 0
+                found = False
                 while pseudoMoves[i] is 1:
-                    if not treatList[ind].eaten:
-                        netInputs[4+i] += 1
+                    dis += 1
+                    if not allTreatLists[x][ind].eaten and not found:
+                        netInputs[4+i] = dis
+                        found = True
 
                     # if x == maxPlayer:
                     #     print("True " + str(i))
@@ -1111,6 +1139,9 @@ def eval_genomes(genomes, config):
                     netInputs[i] += 1
                     pseudoMoves, pseudoPosMovesInd, posTreats = player.calcPosMoves(ind)
                     ind = pseudoPosMovesInd[i]
+                if not found:
+                    netInputs[4+i] = -1
+
 
             player.calcTreatsAround(player.index)
 
@@ -1125,34 +1156,41 @@ def eval_genomes(genomes, config):
             #     netInputs[4 + i] = player.posTreats[i]
             #     i += 1
 
-            for enemy in enemyList:
-                # Enemy above
-                if player.posMoves[0] == 1:
-                    if enemy.index == player.posMovesInd[0]:
-                        netInputs[8] = 1
-
-                    # Enemy below
-                    if player.posMoves[1] == 1:
-                        if enemy.index == player.posMovesInd[1]:
-                            netInputs[9] = 1
-
-                # Enemy on the left
-                if player.posMoves[2] == 1:
-                    if enemy.index == player.posMovesInd[2]:
-                        netInputs[10] = 1
-                    # Enemy on Right
-                    if player.posMoves[3] == 1:
-                        if enemy.index == player.posMovesInd[3]:
-                            netInputs[11] = 1
+            # for enemy in enemyList:
+            #     # Enemy above
+            #     if player.posMoves[0] == 1:
+            #         if enemy.index == player.posMovesInd[0]:
+            #             netInputs[8] = 1
+            #
+            #         # Enemy below
+            #         if player.posMoves[1] == 1:
+            #             if enemy.index == player.posMovesInd[1]:
+            #                 netInputs[9] = 1
+            #
+            #     # Enemy on the left
+            #     if player.posMoves[2] == 1:
+            #         if enemy.index == player.posMovesInd[2]:
+            #             netInputs[10] = 1
+            #         # Enemy on Right
+            #         if player.posMoves[3] == 1:
+            #             if enemy.index == player.posMovesInd[3]:
+            #                 netInputs[11] = 1
             #  Wall
 
-            for i, ip in enumerate(netInputs):
-                if ip is -1:
-                    netInputs[i] = 0
+            # for i, ip in enumerate(netInputs):
+            #     if ip is -1:
+            #         netInputs[i] = 0
 
-            netInputs[12] = len(allTreatLists[0]) - player.score
+            netInputs[len(netInputs)-1] = len(allTreatLists[0]) - player.score
+
+            if player.moving:
+                netInputs = prevInputs[x]
+            else:
+                prevInputs[x] = netInputs
 
             output = nets[x].activate((*netInputs,))
+            out = softmax(output)
+            # out = output
             #
             # print(len(allTreatLists))
 
@@ -1163,23 +1201,25 @@ def eval_genomes(genomes, config):
             if x == maxPlayer:
                 print("Player = " + str(x))
                 print(*netInputs)
-                print(*output)
+                print(*out)
+                print(ctr)
+                print(ge[x].fitness)
                 # print(" Score = " + str(player.score))
                 # print("Len of eaten treats = " + str(68 - ctr))
 
-            if max(output) > 0.5:
+            # if max(out) > 0.5:
 
-                res[x] = output.index(max(output))
+            res[x] = np.argmax(out)
                 # print("res = " + str(res))
-            else:
-                res[x] = -1
+            # else:
+            #     res[x] = -1
 
         for x, player in enumerate(playerList):
             if player.score > playerList[maxPlayer].score:
                 maxPlayer = x
 
         # pressed = pygame.key.get_pressed()
-        DrawWindow(WINDOW, playerList, enemyList, maxPlayer)
+        DrawWindow(WINDOW, playerList, enemyList, maxPlayer, numDead)
 
         # if pressed[K_w]:
         #     mvtInputs = [1, 0, 0, 0]
@@ -1208,13 +1248,14 @@ def eval_genomes(genomes, config):
                 timeCtr[x] = 0
             else:
                 timeCtr[x] += 0.1
-                ge[x].fitness -= 0.05
+                # ge[x].fitness -= 0.05
                 if timeCtr[x] > 60:
                     playerList.pop(x)
                     allTreatLists.pop(x)
                     ge[x].fitness -= 10
                     ge.pop(x)
                     nets.pop(x)
+                    numDead += 1
                     return
 
             # ge[genomeNum].fitness += 0.1
@@ -1224,6 +1265,7 @@ def eval_genomes(genomes, config):
                 ge[x].fitness -= 10
                 ge.pop(x)
                 nets.pop(x)
+                numDead += 1
                 return
 
         FPSCLOCK.tick(FPS)
