@@ -19,7 +19,7 @@ WINDOWHEIGHT = 825
 WALL_THICKNESS = 10
 PLAYER_SIZE = 30
 TREAT_SIZE = 10
-PLAYER_VEL = 5
+PLAYER_VEL = 10
 ENEMY_VEL = 5
 ENEMY_IND = 31
 PORTAL1_IND = 32
@@ -50,6 +50,7 @@ cornerPos = []
 cornerPosFlat = []
 connections = []
 prevInputs = []
+lineList = []
 
 pygame.font.init()
 STAT_FONT = pygame.font.SysFont("roboto", 30)
@@ -118,6 +119,7 @@ class DNode:
         self.dist = dist
         self.val = value
 
+
 def PerformDjikstra(graph, start, end):
     global cornerList
     DNodeList = []
@@ -135,7 +137,7 @@ def PerformDjikstra(graph, start, end):
 
     queue.append(start)
     ind = 0
-    while len(queue)-ind is not 0:
+    while len(queue) - ind is not 0:
 
         moves = graph._graph[currCorner]
         for move in moves:
@@ -150,7 +152,6 @@ def PerformDjikstra(graph, start, end):
             if move not in queue:
                 queue.append(move)
 
-
         visited.append(currCorner)
         currCorner = queue[ind]
         ind += 1
@@ -161,11 +162,7 @@ def PerformDjikstra(graph, start, end):
         curr = DNodeList[curr].prev
         path.append(curr)
 
-
-
     return DNodeList[end].dist, path
-
-
 
 
 class Graph(object):
@@ -292,7 +289,6 @@ def makeConnections():
                 else:
 
                     if not checkWallVertical(selfCorner.x, corner.y, selfCorner.y):
-
                         connections.append((vert, i))
 
                     break
@@ -325,6 +321,9 @@ def makeConnections():
 
             else:
                 i += 1
+        # PORTAL
+    # connections.append((PORTAL1_IND, PORTAL2_IND))
+    # connections.append((PORTAL2_IND, PORTAL1_IND))
 
 
 def checkWallVertical(sameX, belowY, aboveY):
@@ -387,357 +386,66 @@ class Player(pygame.sprite.Sprite):
 
         self.image.fill(self.color)
 
-    def calcTreatsAround(self, index):
-
-        # If you add more treats you have to change the start index way for i here
-
-        myTreatList = allTreatLists[self.genomeNum]
-
-        posTreatsInd = [-1, -1, -1, -1]
-        posTreats = [-1, -1, -1, -1]
-        x = cornerList[index].x
-        y = cornerList[index].y
-
-        ctr = 0
-
-        i = index - 1
-        while i >= 0 and ctr <= 15:
-            ctr += 1
-            treat = myTreatList[i]
-            if treat.x == x and treat.y < y:
-                offset = y - treat.y
-                if offset > WALL_CHECK_OFFSET:
-                    i -= 1
-                    continue
-                else:
-
-                    if not checkWallVertical(x, y, treat.y):
-                        # self.y = corner.y
-                        if not treat.eaten:
-                            posTreats[0] = 1
-                            posTreatsInd[0] = 1
-
-                        break
-            else:
-                i -= 1
-
-        # if self.index == PORTAL1_IND:
-        #     self.posMoves[1] = 1
-
-        ctr = 0
-        i = index - 1
-        while i >= 0 and ctr < 15:
-            ctr += 1
-            treat = myTreatList[i]
-            if treat.y == y and treat.x < x:
-                offset = treat.x - x
-                if offset > WALL_CHECK_OFFSET:
-                    i -= 1
-                    continue
-                else:
-
-                    if not checkWallHorizontal(treat.y, treat.x, x):
-                        # self.x = corner.x
-                        if not treat.eaten:
-                            posTreats[1] = 1
-                            posTreatsInd[1] = 1
-                        break
-
-            else:
-                i -= 1
-
-        ctr = 0
-        i = index + 1
-        while i < len(myTreatList) and ctr < 15:
-            ctr += 1
-            treat = myTreatList[i]
-            if treat.x == x and treat.y > y:
-                offset = treat.y - y
-                if offset > WALL_CHECK_OFFSET:
-                    i += 1
-                    continue
-                else:
-
-                    if not checkWallVertical(x, treat.y, y):
-                        # self.y = corner.y
-                        if not treat.eaten:
-                            posTreats[2] = 1
-                            posTreatsInd[2] = 1
-                        break
-
-            else:
-                i += 1
-
-        # if self.index == PORTAL2_IND:
-        #     self.posTreats[3] = 1
-
-        ctr = 0
-        i = index + 1
-        while i < len(myTreatList) and ctr <= 15:
-            ctr += 1
-            treat = myTreatList[i]
-            if treat.y == y and treat.x > x:
-                offset = x - treat.x
-                if offset > WALL_CHECK_OFFSET:
-                    i += 1
-                    continue
-                else:
-
-                    if not checkWallHorizontal(y, x, treat.x):
-                        # self.x = corner.x
-                        if not treat.eaten:
-                            posTreats[3] = 1
-                            posTreatsInd[3] = 1
-                        break
-            else:
-                i += 1
-
-        if self.index == index:
-            self.posTreats = posTreats
-        return posTreats, posTreatsInd
-
-    def calcPosMoves(self, index):
-
-        x = cornerList[index].x
-        y = cornerList[index].y
+    def newCalcPosMoves(self, graph, index):
+        global cornerList, allTreatLists
+        moves = graph._graph[index]
+        currCorner = cornerList[index]
         posMoves = [-1, -1, -1, -1]
         posMovesInd = [-1, -1, -1, -1]
         posTreats = [0, 0, 0, 0]
+        playerTreatList = allTreatLists[self.genomeNum]
 
-        ctr = 0
-        keepGoing = True
-        i = index - 1
-        while i >= 0 and ctr <= 15:
-            ctr += 1
-            corner = cornerList[i]
-            if corner.x == x and corner.y < y:
-                offset = y - corner.y
-                if offset > WALL_CHECK_OFFSET:
-                    i -= 1
-                    continue
-                else:
+        for m in moves:
 
-                    if not checkWallVertical(x, y, corner.y):
-                        # self.y = corner.y
-                        posMoves[0] = 1
-                        posMovesInd[0] = i
-                        if not treatList[i].eaten:
-                            posTreats[0] = 1
+            corner = cornerList[m]
+            if corner.x == currCorner.x:
+                if corner.y > currCorner.y:
+                    posMoves[2] = 1
+                    posMovesInd[2] = m
 
-                        break
+                    if not playerTreatList[m].eaten:
+                        posTreats[2] = 1
 
+                elif corner.y < currCorner.y:
+                    posMoves[0] = 1
+                    posMovesInd[0] = m
 
-            else:
-                i -= 1
-
+                    if not playerTreatList[m].eaten:
+                        posTreats[0] = 1
+            elif corner.y == currCorner.y:
+                if corner.x > currCorner.x:
+                    posMoves[3] = 1
+                    posMovesInd[3] = m
+                    if not playerTreatList[m].eaten:
+                        posTreats[3] = 1
+                elif corner.x < currCorner.x:
+                    posMoves[1] = 1
+                    posMovesInd[1] = m
+                    if not playerTreatList[m].eaten:
+                        posTreats[1] = 1
         if index == PORTAL1_IND:
             posMoves[1] = 1
             posMovesInd[1] = PORTAL2_IND
-            if not treatList[index].eaten:
+            if not playerTreatList[PORTAL2_IND].eaten:
                 posTreats[1] = 1
 
-        ctr = 0
-        i = index - 1
-        while i >= 0 and ctr < 15:
-            ctr += 1
-            corner = cornerList[i]
-            if corner.y == y and corner.x < x:
-                offset = corner.x - x
-                if offset > WALL_CHECK_OFFSET:
-                    i -= 1
-                    continue
-                else:
-
-                    if not checkWallHorizontal(corner.y, corner.x, x):
-                        # self.x = corner.x
-                        posMoves[1] = 1
-                        posMovesInd[1] = i
-                        if not treatList[i].eaten:
-                            posTreats[1] = 1
-
-                        break
-
-            else:
-                i -= 1
-
-        ctr = 0
-        i = index + 1
-        while i < len(cornerList) and ctr < 15:
-            ctr += 1
-            corner = cornerList[i]
-            if corner.x == x and corner.y > y:
-                offset = corner.y - y
-                if offset > WALL_CHECK_OFFSET:
-                    i += 1
-                    continue
-                else:
-
-                    if not checkWallVertical(x, corner.y, y):
-                        # self.y = corner.y
-                        posMoves[2] = 1
-                        posMovesInd[2] = i
-                        if not treatList[i].eaten:
-                            posTreats[2] = 1
-
-                        break
-
-            else:
-                i += 1
-
-        if index == PORTAL2_IND:
+        elif index == PORTAL2_IND:
             posMoves[3] = 1
             posMovesInd[3] = PORTAL1_IND
-            if not treatList[index].eaten:
+            if not playerTreatList[PORTAL1_IND].eaten:
                 posTreats[3] = 1
-
-        ctr = 0
-        i = index + 1
-        while i < len(cornerList) and ctr <= 15:
-            ctr += 1
-            corner = cornerList[i]
-            if corner.y == y and corner.x > x:
-                offset = x - corner.x
-                if offset > WALL_CHECK_OFFSET:
-                    i += 1
-                    continue
-                else:
-
-                    if not checkWallHorizontal(y, x, corner.x):
-                        # self.x = corner.x
-                        posMoves[3] = 1
-                        posMovesInd[3] = i
-                        if not treatList[i].eaten:
-                            posTreats[3] = 1
-
-                        break
-
-
-            else:
-                i += 1
-
-        if self.index == index:
-            self.posMoves = posMoves
-            self.posMovesInd = posMovesInd
 
         return posMoves, posMovesInd, posTreats
 
-    def newInputs(self, pressed):
-        finding = True
+    #  Implement with Graph
 
-        if pressed[0] == 1:
-            i = self.index - 1
-            while i >= 0:
-                corner = cornerList[i]
-                if corner.x == self.x and corner.y < self.y:
-                    offset = self.y - corner.y
-                    if offset > WALL_CHECK_OFFSET:
-                        i -= 1
-                        continue
-                    else:
-
-                        if not checkWallVertical(self.x, self.y, corner.y):
-                            # self.y = corner.y
-
-                            self.targetIndex = cornerList.index(corner)
-                            self.smoothMove(corner.x, corner.y, 0)
-
-                            return
-                        else:
-                            return
-                else:
-                    i -= 1
+    def newNewInputs(self, pressed):
+        for i in range(4):
+            if pressed[i] == 1 and self.posMoves[i] == 1:
+                self.targetIndex = self.posMovesInd[i]
+                self.smoothMove(cornerList[self.targetIndex].x, cornerList[self.targetIndex].y, i)
 
 
-        elif pressed[1] == 1:
-            if self.index == PORTAL1_IND:
-                self.x = cornerList[PORTAL2_IND].x
-                self.y = cornerList[PORTAL2_IND].y
-                self.index = PORTAL2_IND
-                self.targetIndex = PORTAL2_IND
-                self.targetX = cornerList[PORTAL2_IND].x
-                self.targetY = cornerList[PORTAL2_IND].y
-
-                return
-
-            i = self.index - 1
-            while i >= 0:
-                corner = cornerList[i]
-                if corner.y == self.y and corner.x < self.x:
-                    offset = corner.x - self.x
-                    if offset > WALL_CHECK_OFFSET:
-                        i -= 1
-                        continue
-                    else:
-
-                        if not checkWallHorizontal(corner.y, corner.x, self.x):
-                            # self.x = corner.x
-
-                            self.targetIndex = cornerList.index(corner)
-                            self.smoothMove(corner.x, corner.y, 1)
-
-                            return
-                        else:
-                            return
-                else:
-                    i -= 1
-
-        elif pressed[2] == 1:
-
-            i = self.index + 1
-            while i < len(cornerList):
-                corner = cornerList[i]
-                if corner.x == self.x and corner.y > self.y:
-                    offset = corner.y - self.y
-                    if offset > WALL_CHECK_OFFSET:
-                        i += 1
-                        continue
-                    else:
-
-                        if not checkWallVertical(self.x, corner.y, self.y):
-                            # self.y = corner.y
-
-                            self.targetIndex = cornerList.index(corner)
-                            self.smoothMove(corner.x, corner.y, 2)
-
-                            return
-                        else:
-                            return
-                else:
-                    i += 1
-
-        elif pressed[3] == 1:
-            if self.index == PORTAL2_IND:
-                self.x = cornerList[PORTAL1_IND].x
-                self.y = cornerList[PORTAL1_IND].y
-                self.index = PORTAL1_IND
-                self.targetIndex = PORTAL1_IND
-                self.targetX = cornerList[PORTAL1_IND].x
-                self.targetY = cornerList[PORTAL1_IND].y
-
-                return
-
-            i = self.index + 1
-            while i < len(cornerList):
-                corner = cornerList[i]
-                if corner.y == self.y and corner.x > self.x:
-                    offset = self.x - corner.x
-                    if offset > WALL_CHECK_OFFSET:
-                        i += 1
-                        continue
-                    else:
-
-                        if not checkWallHorizontal(self.y, self.x, corner.x):
-                            # self.x = corner.x
-
-                            self.targetIndex = cornerList.index(corner)
-                            self.smoothMove(corner.x, corner.y, 3)
-
-                            return
-                        else:
-                            return
-
-                else:
-                    i += 1
 
     def smoothMove(self, _targetX, _targetY, _moveDir):
         # moveDir = W A S D = 0 1 2 3
@@ -768,26 +476,6 @@ class Player(pygame.sprite.Sprite):
 
         return
 
-    def input(self, pressed):
-
-        for p in pressed:
-            if p:
-                self.numKeyPressed += 1
-
-        if self.numKeyPressed > 1:
-            return
-        self.vx = 0
-        self.vy = 0
-        if pressed[K_LEFT]:
-            self.vx = -self.vel
-
-        elif pressed[K_RIGHT]:
-            self.vx += self.vel
-        elif pressed[K_UP]:
-            self.vy -= self.vel
-        elif pressed[K_DOWN]:
-            self.vy += self.vel
-
     def updateScore(self):
 
         myTreatList = allTreatLists[self.genomeNum]
@@ -810,8 +498,8 @@ class Player(pygame.sprite.Sprite):
 
         self.numKeyPressed = 0
         if not self.moving:
-            self.newInputs(pressed)
-        # self.input(pressed)
+            self.newNewInputs(pressed)
+
         # Move Player
         if self.x < 0:
             self.x = WINDOWWIDTH
@@ -912,6 +600,7 @@ class Enemy(pygame.sprite.Sprite):
         self.targetY = y
         self.targetIndex = ind
         self.posMoves = [-1, -1, -1, -1]
+        self.posMovesInd = [-1, -1, -1, -1]
         self.x = x
         self.y = y
         self.moving = False
@@ -919,169 +608,60 @@ class Enemy(pygame.sprite.Sprite):
         self.vx = 0
         self.vy = 0
         self.playerAlive = True
+        self.path = []
+        self.updateAI = True
+        self.prevStart = 0
+        self.prevEnd = 0
 
-    def updatePosition(self, _targetX, _targetY):
+    def newCalcPosMoves(self, graph, index):
+        global cornerList, allTreatLists
+        moves = graph._graph[index]
+        currCorner = cornerList[index]
+        posMoves = [-1, -1, -1, -1]
+        posMovesInd = [-1, -1, -1, -1]
 
-        if not self.moving:
-            self.move(_targetX, _targetY)
-        # self.input(pressed)
-        # Move Player
-        if self.x < 0:
-            self.x = WINDOWWIDTH
-        elif self.x > WINDOWWIDTH:
-            self.x = 0
 
-        if (self.x is not self.targetX) and self.y is not self.targetY:
-            if ((abs(self.x - self.targetX)) <= (PLAYER_VEL / 2)) and (abs(self.y - self.targetY)) <= (PLAYER_VEL / 2):
-                self.vx = 0
-                self.vy = 0
-                self.x = self.targetX
-                self.y = self.targetY
-                self.index = self.targetIndex
-                self.moving = False
+        for m in moves:
 
-        self.x += self.vx
-        self.y += self.vy
-        self.rect.x = self.x
-        self.rect.y = self.y
+            corner = cornerList[m]
+            if corner.x == currCorner.x:
+                if corner.y > currCorner.y:
+                    posMoves[2] = 1
+                    posMovesInd[2] = m
 
-    def move(self, targetX, targetY):
-        _moveCorner = -1
-        self.targetX = targetX
-        self.targetY = targetY
-        if self.x == targetX and self.y == targetY:
-            return
 
-        disList = [math.inf, math.inf, math.inf, math.inf]
+                elif corner.y < currCorner.y:
+                    posMoves[0] = 1
+                    posMovesInd[0] = m
 
-        self.updatePosMoves()
+            elif corner.y == currCorner.y:
+                if corner.x > currCorner.x:
+                    posMoves[3] = 1
+                    posMovesInd[3] = m
 
-        for i, potentialCorner in enumerate(self.posMoves):
-            if potentialCorner is not -1:
-                disList[i] = distance(targetX, targetY, cornerList[potentialCorner].x, cornerList[potentialCorner].y)
+                elif corner.x < currCorner.x:
+                    posMoves[1] = 1
+                    posMovesInd[1] = m
 
-        i = disList.index(min(disList))
-        _moveCorner = self.posMoves[i]
-        self.targetX = cornerList[_moveCorner].x
-        self.targetY = cornerList[_moveCorner].y
-        self.smoothMove(self.targetX, self.targetY, i)
+        if index == PORTAL1_IND:
+            posMoves[1] = 1
+            posMovesInd[1] = PORTAL2_IND
 
-        self.targetIndex = _moveCorner
 
-    def Draw(self, win):
-        win.blit(self.image, (self.x, self.y))
+        elif index == PORTAL2_IND:
+            posMoves[3] = 1
+            posMovesInd[3] = PORTAL1_IND
 
-    def updatePosMoves(self):
 
-        self.posMoves = [-1, -1, -1, -1]
-        ctr = 0
-        i = self.index - 1
-        while i >= 0 and ctr <= 15:
-            ctr += 1
-            corner = cornerList[i]
-            if corner.x == self.x and corner.y < self.y:
-                offset = self.y - corner.y
-                if offset > WALL_CHECK_OFFSET:
-                    i -= 1
-                    continue
-                else:
+        return posMoves, posMovesInd
 
-                    if not checkWallVertical(self.x, self.y, corner.y):
+    #  Implement with Graph
 
-                        self.posMoves[0] = cornerList.index(corner)
-
-                    else:
-                        self.posMoves[0] = -1
-                    break
-
-            else:
-                i -= 1
-
-            #
-            # if self.index == PORTAL1_IND:
-            #     self.x = cornerList[PORTAL2_IND].x
-            #     self.y = cornerList[PORTAL2_IND].y
-            #     self.index = PORTAL2_IND
-            #     self.targetIndex = PORTAL2_IND
-            #     self.targetX = cornerList[PORTAL2_IND].x
-            #     self.targetY = cornerList[PORTAL2_IND].y
-            #     return True
-        ctr = 0
-        i = self.index - 1
-        while i >= 0 and ctr <= 15:
-            ctr += 1
-            corner = cornerList[i]
-            if corner.y == self.y and corner.x < self.x:
-                offset = corner.x - self.x
-                if offset > WALL_CHECK_OFFSET:
-                    i -= 1
-                    continue
-                else:
-
-                    if not checkWallHorizontal(corner.y, corner.x, self.x):
-
-                        self.posMoves[1] = cornerList.index(corner)
-
-                    else:
-                        self.posMoves[0] = -1
-
-                    break
-            else:
-                i -= 1
-        ctr = 0
-        i = self.index + 1
-        while i < len(cornerList) and ctr <= 15:
-            ctr += 1
-            corner = cornerList[i]
-            if corner.x == self.x and corner.y > self.y:
-                offset = corner.y - self.y
-                if offset > WALL_CHECK_OFFSET:
-                    i += 1
-                    continue
-                else:
-
-                    if not checkWallVertical(self.x, corner.y, self.y):
-
-                        self.posMoves[2] = cornerList.index(corner)
-
-                    else:
-                        self.posMoves[2] = -1
-
-                    break
-            else:
-                i += 1
-
-        # if self.index == PORTAL2_IND:
-        #     self.x = cornerList[PORTAL1_IND].x
-        #     self.y = cornerList[PORTAL1_IND].y
-        #     self.index = PORTAL1_IND
-        #     self.targetIndex = PORTAL1_IND
-        #     self.targetX = cornerList[PORTAL1_IND].x
-        #     self.targetY = cornerList[PORTAL1_IND].y
-        #     return True
-        ctr = 0
-        i = self.index + 1
-        while i < len(cornerList) and ctr <= 15:
-            ctr += 1
-            corner = cornerList[i]
-            if corner.y == self.y and corner.x > self.x:
-                offset = self.x - corner.x
-                if offset > WALL_CHECK_OFFSET:
-                    i += 1
-                    continue
-                else:
-
-                    if not checkWallHorizontal(self.y, self.x, corner.x):
-
-                        self.posMoves[3] = cornerList.index(corner)
-
-                    else:
-                        self.posMoves[3] = -1
-
-                    break
-
-            else:
-                i += 1
+    def newNewInputs(self, pressed):
+        for i in range(4):
+            if pressed[i] == 1 and self.posMoves[i] == 1:
+                self.targetIndex = self.posMovesInd[i]
+                self.smoothMove(cornerList[self.targetIndex].x, cornerList[self.targetIndex].y, i)
 
     def smoothMove(self, _targetX, _targetY, _moveDir):
         # moveDir = W A S D = 0 1 2 3
@@ -1113,6 +693,93 @@ class Enemy(pygame.sprite.Sprite):
         return
 
 
+    def updatePosition(self, pressed):
+
+        self.numKeyPressed = 0
+        if not self.moving:
+            self.newNewInputs(pressed)
+
+        # Move Player
+        if self.x < 0:
+            self.x = WINDOWWIDTH
+        elif self.x > WINDOWWIDTH:
+            self.x = 0
+
+        if (self.x is not self.targetX) and self.y is not self.targetY:
+            if ((abs(self.x - self.targetX)) <= (PLAYER_VEL / 2)) and (abs(self.y - self.targetY)) <= (PLAYER_VEL / 2):
+                self.vx = 0
+                self.vy = 0
+                self.x = self.targetX
+                self.y = self.targetY
+                self.index = self.targetIndex
+                self.moving = False
+
+        self.x += self.vx
+        self.y += self.vy
+        self.rect.x = self.x
+        self.rect.y = self.y
+
+        # Check for Collisions
+        for wall in wallList:
+            if pygame.sprite.collide_rect(self, wall):
+
+                if self.vx > 0:
+                    self.x = wall.rect.left - self.width
+
+                elif self.vx < 0:
+                    self.x = wall.rect.right
+                elif self.vy > 0:
+                    self.y = wall.rect.top - self.height
+
+                elif self.vy < 0:
+                    self.y = wall.rect.bottom
+
+                self.vx = 0
+                self.vy = 0
+
+    def CalcEnemyAI(self, graph, targetInd):
+        self.updateAI = False
+        needToUpdate = False
+        if self.prevEnd != targetInd:
+            self.prevEnd = targetInd
+            needToUpdate = True
+        if self.prevStart != self.index:
+            self.prevStart = self.index
+            needToUpdate = True
+        if needToUpdate:
+            dist, self.path = PerformDjikstra(graph, self.index, targetInd)
+
+
+
+
+
+    def moveOnPath(self):
+        i = 1
+
+        moveDir = [0, 0, 0, 0]
+        while i < len(self.path):
+            move = self.path[i]
+            if cornerList[move].x == cornerList[self.index].x:
+                if cornerList[move].y < cornerList[self.index].y:
+                    moveDir[0] = 1
+                elif cornerList[move].y > cornerList[self.index].y:
+                    moveDir[2] = 1
+            elif cornerList[move].y == cornerList[self.index].y:
+                if cornerList[move].x < cornerList[self.index].x:
+                    moveDir[1] = 1
+                elif cornerList[move].x > cornerList[self.index].x:
+                    moveDir[3] = 1
+
+            self.updatePosition(moveDir)
+            self.path.pop(i)
+
+
+
+
+
+
+
+
 class Corner():
     def __init__(self, x, y):
         pygame.sprite.Sprite.__init__(self)
@@ -1135,6 +802,20 @@ class Wall(pygame.sprite.Sprite):
 
         self.image = pygame.Surface((w, h))
         self.image.fill(GREEN)
+        self.rect = Rect(x, y, w, h)
+
+        self.x = x
+        self.y = y
+
+
+class Line(pygame.sprite.Sprite):
+
+    def __init__(self, x, y, w, h):
+        # Call the parent's constructor
+        pygame.sprite.Sprite.__init__(self)
+
+        self.image = pygame.Surface((w, h))
+        self.image.fill(RED)
         self.rect = Rect(x, y, w, h)
 
         self.x = x
@@ -1202,17 +883,18 @@ def MakeWalls(_tileMap):
 
 
 def DrawWindow(win, players, enemies, maxPlayerInd, numDead, numAlive):
-    global gen
+    global gen, lineList
     for wall in wallList:
         win.blit(wall.image, (wall.x, wall.y))
-
+    for line in lineList:
+        win.blit(line.image, (line.x, line.y))
     # for corner in cornerList:
     #     win.blit(corner.image, (corner.x, corner.y))
     for portal in portalList:
         portal.Draw(WINDOW)
     for enemy in enemies:
         if enemy.playerAlive:
-            enemy.Draw(WINDOW)
+            win.blit(enemy.image, (enemy.x, enemy.y))
 
     textColor = players[maxPlayerInd].color
     text2 = STAT_FONT.render("PLAYER  " + str(maxPlayerInd), 1, textColor)
@@ -1256,11 +938,52 @@ def softmax(arr):
     return out
 
 
-def eval_genomes(genomes, config):
+def MakePath(path, end):
+    newPath = []
+    path.reverse()
+    path.append(end)
+    print(*path)
+    HighlightPath(path)
+
+
+def HighlightPath(path):
+    global cornerList, lineList
+    i = 0
+    j = i + 1
+    lineList = []
+    while i is not len(path) - 1:
+
+        vertical = False
+        horizontal = False
+        c1 = cornerList[path[i]]
+        c2 = cornerList[path[j]]
+        if c1.x == c2.x:
+            vertical = True
+            horizontal = False
+        elif c1.y == c2.y:
+            vertical = False
+            horizontal = True
+        if horizontal:
+            if c1.x < c2.x:
+                x = c1.x
+            else:
+                x = c2.x
+            lineList.append(Line(x, c1.y, abs(c1.x - c2.x), 2))
+        elif vertical:
+            if c1.y < c2.y:
+                y = c1.y
+            else:
+                y = c2.y
+            lineList.append(Line(c1.x, y, 2, abs(c1.y - c2.y)))
+        i += 1
+        j = i + 1
+
+
+# genomes, config
+def eval_genomes():
     nets = []  # Neural nets for all the birds
     ge = []  # The bird neat variable with all the fitness and shit
     global gen, WINDOW, wallList, enemyList, tileMap, treatList, allTreatLists, playerList, prevInputs, connections
-
 
     gen += 1
     num = 0
@@ -1269,15 +992,17 @@ def eval_genomes(genomes, config):
     numAlive = 0
     pseudoNetInputs = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     prevInputs = []
-    for _, g in genomes:
-        num += 1
-        g.fitness = 0
-        # For each Genome, create a new network
-        res.append(-1)
-        prevInputs.append(pseudoNetInputs)
-        net = neat.nn.FeedForwardNetwork.create(g, config)
-        nets.append(net)
-        ge.append(g)
+
+    # NEAT
+    # for _, g in genomes:
+    #     num += 1
+    #     g.fitness = 0
+    #     # For each Genome, create a new network
+    #     res.append(-1)
+    #     prevInputs.append(pseudoNetInputs)
+    #     net = neat.nn.FeedForwardNetwork.create(g, config)
+    #     nets.append(net)
+    #     ge.append(g)
 
     clock = pygame.time.Clock()
     pygame.init()
@@ -1291,34 +1016,43 @@ def eval_genomes(genomes, config):
     MakeWalls(tileMap)
     MakePortals(tileMap)
 
-    MakeTreats(tileMap, num)
+    # num
+    MakeTreats(tileMap, 1)
 
     timeCtr = []
     spawnIndex = random.randint(0, len(cornerList) - 1)
     genomeNum = 0
-    for g in ge:
-        color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
-        player = Player(cornerList[spawnIndex].x, cornerList[spawnIndex].y, spawnIndex, genomeNum, color)
-        genomeNum += 1
-        enemy = Enemy(cornerList[31].x, cornerList[31].y, ENEMY_IND, 1)
-        enemyList.append(enemy)
-        playerList.append(player)
-        timeCtr.append(0)
 
-    # enemy1 = Enemy(cornerList[31].x, cornerList[31].y, ENEMY_IND, 1)
-    # enemyList.append(enemy1)
+    # NEAT
+    # for g in ge:
+    #     color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
+    #     player = Player(cornerList[spawnIndex].x, cornerList[spawnIndex].y, spawnIndex, genomeNum, color)
+    #     genomeNum += 1
+    #     enemy = Enemy(cornerList[31].x, cornerList[31].y, ENEMY_IND, 1)
+    #     enemyList.append(enemy)
+    #     playerList.append(player)
+    #     timeCtr.append(0)
+
+    # SinglePlayer
+    timeCtr.append(0)
+    enemyList.append(Enemy(cornerList[31].x, cornerList[31].y, ENEMY_IND, 1))
+    playerList.append(Player(cornerList[spawnIndex].x, cornerList[spawnIndex].y, spawnIndex, genomeNum, BLUE))
+
     maxPlayer = 0
     Run = True
     makeConnections()
-    g = Graph(connections, directed=True)
-    mockConnections = [(0, 1), (0, 2), (0, 3), (1, 2), (1, 4), (1, 0), (2, 1), (2, 4), (2, 5), (2, 0), (3, 0), (3, 5), (4, 5), (4, 1), (4, 2), (5, 2), (5, 4), (5, 3)]
-    g2 = Graph(mockConnections, directed=True)
+    mainGraph = Graph(connections, directed=True)
+    # mockConnections = [(0, 1), (0, 2), (0, 3), (1, 2), (1, 4), (1, 0), (2, 1), (2, 4), (2, 5), (2, 0), (3, 0), (3, 5), (4, 5), (4, 1), (4, 2), (5, 2), (5, 4), (5, 3)]
+    # g2 = Graph(mockConnections, directed=True)
     pretty_print = pprint.PrettyPrinter()
-    pretty_print.pprint(g2._graph)
+    # pretty_print.pprint(mainGraph._graph)
 
-    dist, path = PerformDjikstra(g, 0, 23)
-    print(dist)
-    print(*path)
+    dist, path = PerformDjikstra(mainGraph, 0, 67)
+    # print(dist)
+    # print(*path)
+
+    # MakePath(path, 67)
+    # print(len(lineList))
 
     while Run:
         if len(playerList) <= 0:
@@ -1326,7 +1060,8 @@ def eval_genomes(genomes, config):
             print("run false")
             break
 
-        # print(str(len(playerList)) + " " + str(Run))
+        # SinglePLayer
+        pressed = pygame.key.get_pressed()
 
         numAlive = len(playerList)
         mvtInputs = [0, 0, 0, 0]
@@ -1337,25 +1072,28 @@ def eval_genomes(genomes, config):
                 pygame.quit()
                 sys.exit()
 
-        # Inputs 0-3
-        # Enemy
-
         for x, player in enumerate(playerList):
 
-            enemyList[player.genomeNum].updatePosition(player.x, player.y)
+            myEnemy = enemyList[player.genomeNum]
+            player.posMoves, player.posMovesInd, player.posTreats = player.newCalcPosMoves(mainGraph, player.index)
+            myEnemy.posMoves, myEnemy.posMovesInd = myEnemy.newCalcPosMoves(mainGraph, myEnemy.index)
 
-            ge[x].fitness += 0.001
+            # myEnemy.CalcEnemyAI(mainGraph, player.targetIndex)
+            myEnemy.path = [31, 28, 27, 26, 27, 26, 27, 26, 27]
+            myEnemy.moveOnPath()
+
+            # ge[x].fitness += 0.001
             if player.updateScore():
-                ge[x].fitness += 5
+                # ge[x].fitness += 5
                 timeCtr[x] = 0
             else:
                 timeCtr[x] += 0.1
-                # ge[x].fitness -= 0.05
+
             netInputs = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-            # , 0, 0, 0, 0
 
             for i in range(4):
-                pseudoMoves, pseudoPosMovesInd, posTreats = player.calcPosMoves(player.index)
+                pseudoMoves, pseudoPosMovesInd, posTreats = player.newCalcPosMoves(mainGraph, player.index)
+
                 ind = pseudoPosMovesInd[i]
                 dis = 0
                 foundTreat = False
@@ -1372,44 +1110,41 @@ def eval_genomes(genomes, config):
                         netInputs[8 + i] = dis
                         foundEnemy = True
                     netInputs[i] += 1
-                    pseudoMoves, pseudoPosMovesInd, posTreats = player.calcPosMoves(ind)
+                    pseudoMoves, pseudoPosMovesInd, posTreats = player.newCalcPosMoves(mainGraph, ind)
+
                     ind = pseudoPosMovesInd[i]
                 if not foundTreat:
                     netInputs[4 + i] = -1
                 if not foundEnemy:
                     netInputs[8 + i] = -1
 
-            player.calcTreatsAround(player.index)
-
             for i, ip in enumerate(netInputs):
                 netInputs[i] *= 100
 
             netInputs[len(netInputs) - 1] = len(allTreatLists[0]) - player.score
 
-            if player.moving:
-                netInputs = prevInputs[x]
-            else:
-                prevInputs[x] = netInputs
+            # NEAT
+            # if player.moving:
+            #     netInputs = prevInputs[x]
+            # else:
+            #     prevInputs[x] = netInputs
 
-            output = nets[x].activate((*netInputs,))
+            # output = nets[x].activate((*netInputs,))
 
-            out = softmax(output)
-            max = np.max(out)
-            maxList = [np.argmax(out)]
-            maxCtr = 0
-            for i in range(out.shape[0]):
-                if out[i] == max:
-                    maxCtr += 1
-                    maxList.append(i)
+            # out = softmax(output)
+            # max = np.max(out)
+            # maxList = [np.argmax(out)]
+            # maxCtr = 0
+            # for i in range(out.shape[0]):
+            #     if out[i] == max:
+            #         maxCtr += 1
+            #         maxList.append(i)
+            # if maxCtr is 0:
+            #     res[x] = np.argmax(out)
+            # else:
+            #     res[x] = random.choice(maxList)
 
-            # out = output
-            #
-            # print(len(allTreatLists))
-
-            ctr = 0
-            for treat in allTreatLists[x]:
-                if not treat.eaten:
-                    ctr += 1
+            # PrintBlock
             # if x == maxPlayer:
             #     print(timeCtr[x])
             #     print("Player = " + str(x))
@@ -1420,18 +1155,6 @@ def eval_genomes(genomes, config):
             #     print(" Score = " + str(player.score))
             #     print("Len of eaten treats = " + str(68 - ctr))
 
-            # if max(out) > 0.5:
-
-            if maxCtr is 0:
-                res[x] = np.argmax(out)
-            else:
-                res[x] = random.choice(maxList)
-                # if x is maxPlayer:
-                # print("More than one")
-                # print("res = " + str(res))
-            # else:
-            #     res[x] = -1
-
         for x, player in enumerate(playerList):
             if player.score > playerList[maxPlayer].score:
                 maxPlayer = x
@@ -1439,27 +1162,39 @@ def eval_genomes(genomes, config):
         # pressed = pygame.key.get_pressed()
         DrawWindow(WINDOW, playerList, enemyList, maxPlayer, numDead, numAlive)
 
-        # if pressed[K_w]:
-        #     mvtInputs = [1, 0, 0, 0]
-        # elif pressed[K_a]:
-        #     mvtInputs = [0, 1, 0, 0]
-        # elif pressed[K_s]:
-        #     mvtInputs = [0, 0, 1, 0]
-        # elif pressed[K_d]:
-        #     mvtInputs = [0, 0, 0, 1]
-
         for x, player in enumerate(playerList):
-            if res[x] == 0:
+            # if res[x] == 0:
+            #     mvtInputs = [1, 0, 0, 0]
+            # elif res[x] == 1:
+            #     mvtInputs = [0, 1, 0, 0]
+            # elif res[x] == 2:
+            #     mvtInputs = [0, 0, 1, 0]
+            # elif res[x] == 3:
+            #     mvtInputs = [0, 0, 0, 1]
+            # else:
+            #     mvtInputs = [0, 0, 0, 0]
+
+            # SinglePlayer inputs
+            if pressed[K_w]:
                 mvtInputs = [1, 0, 0, 0]
-            elif res[x] == 1:
+            elif pressed[K_a]:
                 mvtInputs = [0, 1, 0, 0]
-            elif res[x] == 2:
+            elif pressed[K_s]:
                 mvtInputs = [0, 0, 1, 0]
-            elif res[x] == 3:
+            elif pressed[K_d]:
                 mvtInputs = [0, 0, 0, 1]
-            else:
-                mvtInputs = [0, 0, 0, 0]
+            mvtInputs2 = [0, 0, 0, 0]
+            if pressed[K_UP]:
+                mvtInputs2 = [1, 0, 0, 0]
+            if pressed[K_LEFT]:
+                mvtInputs2 = [0, 1, 0, 0]
+            if pressed[K_DOWN]:
+                mvtInputs2 = [0, 0, 1, 0]
+            if pressed[K_RIGHT]:
+                mvtInputs2 = [0, 0, 0, 1]
+
             player.updatePosition(mvtInputs)
+            enemyList[player.genomeNum].updatePosition(mvtInputs2)
             # enemy1.updatePosition(player.targetX, player.targetY)
 
             if timeCtr[x] > 60:
@@ -1471,44 +1206,52 @@ def eval_genomes(genomes, config):
                     maxPlayer = 0
                 print(len(playerList))
                 enemyList[x].playerAlive = False
-                ge[x].fitness -= 10
-                nets.pop(x)
-                ge.pop(x)
+
+                # NEAT
+                # ge[x].fitness -= 10
+                # nets.pop(x)
+                # ge.pop(x)
 
                 numDead += 1
                 continue
 
-            # ge[genomeNum].fitness += 0.1
             if player.Death():
+                print("Death")
                 playerList.pop(x)
                 if x < maxPlayer:
                     maxPlayer -= 1
                 if x == maxPlayer:
                     maxPlayer = 0
                 enemyList[x].playerAlive = False
-                ge[x].fitness -= 10
-                ge.pop(x)
-                nets.pop(x)
+
+                # NEAT
+                # ge[x].fitness -= 10
+                # ge.pop(x)
+                # nets.pop(x)
                 numDead += 1
                 continue
+        timeCtr[0] = 0
         clock.tick(30)
 
 
-def run(config_file):
-    config = neat.config.Config(neat.DefaultGenome, neat.DefaultReproduction,
-                                neat.DefaultSpeciesSet, neat.DefaultStagnation,
-                                config_file)
+eval_genomes()
 
-    p = neat.Population(config)
-
-    p.add_reporter(neat.StdOutReporter(True))
-    stats = neat.StatisticsReporter()
-    p.add_reporter(stats)
-
-    winner = p.run(eval_genomes, 50)
-
-
-if __name__ == '__main__':
-    local_dir = os.path.dirname(__file__)
-    config_path = os.path.join(local_dir, 'config-feedforward.txt')
-    run(config_path)
+# NEAT
+# def run(config_file):
+#     config = neat.config.Config(neat.DefaultGenome, neat.DefaultReproduction,
+#                                 neat.DefaultSpeciesSet, neat.DefaultStagnation,
+#                                 config_file)
+#
+#     p = neat.Population(config)
+#
+#     p.add_reporter(neat.StdOutReporter(True))
+#     stats = neat.StatisticsReporter()
+#     p.add_reporter(stats)
+#
+#     winner = p.run(eval_genomes, 50)
+#
+#
+# if __name__ == '__main__':
+#     local_dir = os.path.dirname(__file__)
+#     config_path = os.path.join(local_dir, 'config-feedforward.txt')
+#     run(config_path)
