@@ -19,7 +19,7 @@ WINDOWHEIGHT = 825
 WALL_THICKNESS = 10
 PLAYER_SIZE = 30
 TREAT_SIZE = 10
-PLAYER_VEL = 10
+PLAYER_VEL = 5
 ENEMY_VEL = 5
 ENEMY_IND = 31
 PORTAL1_IND = 32
@@ -48,7 +48,7 @@ enemyList = []
 playerList = []
 cornerPos = []
 cornerPosFlat = []
-
+connections = []
 prevInputs = []
 
 pygame.font.init()
@@ -107,6 +107,224 @@ W                        W                        W
 W                        W                        W
 WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW"""
 tileMap = tileMap.splitlines()
+
+import pprint
+from collections import defaultdict
+
+
+class DNode:
+    def __init__(self, value, previous, dist):
+        self.prev = previous
+        self.dist = dist
+        self.val = value
+
+def PerformDjikstra(graph, start, end):
+    global cornerList
+    DNodeList = []
+    queue = []
+    visited = []
+    result = -1
+    for i, _ in enumerate(cornerList):
+        DNodeList.append(DNode(i, -1, -1))
+    found = False
+
+    currCorner = start
+
+    DNodeList[currCorner].dist = 0
+    DNodeList[currCorner].prev = 0
+
+    queue.append(start)
+    ind = 0
+    while len(queue)-ind is not 0:
+
+        moves = graph._graph[currCorner]
+        for move in moves:
+            dis1 = DNodeList[move].dist
+            if dis1 is -1:
+                DNodeList[move].prev = currCorner
+                DNodeList[move].dist = DNodeList[currCorner].dist + 1
+                # queue.append(move)
+            elif DNodeList[currCorner].dist + 1 < dis1:
+                DNodeList[move].prev = currCorner
+                DNodeList[move].dist = DNodeList[currCorner].dist + 1
+            if move not in queue:
+                queue.append(move)
+
+
+        visited.append(currCorner)
+        currCorner = queue[ind]
+        ind += 1
+
+    path = []
+    curr = end
+    while curr is not start:
+        curr = DNodeList[curr].prev
+        path.append(curr)
+
+
+
+    return DNodeList[end].dist, path
+
+
+
+
+class Graph(object):
+    """ Graph data structure, undirected by default. """
+
+    def __init__(self, connections, directed=False):
+        self._graph = defaultdict(set)
+        self._directed = directed
+        self.add_connections(connections)
+
+    def add_connections(self, connections):
+        """ Add connections (list of tuple pairs) to graph """
+
+        for node1, node2 in connections:
+            self.add(node1, node2)
+
+    def add(self, node1, node2):
+        """ Add connection between node1 and node2 """
+
+        self._graph[node1].add(node2)
+        if not self._directed:
+            self._graph[node2].add(node1)
+
+    def remove(self, node):
+        """ Remove all references to node """
+
+        for n, cxns in self._graph.items():  # python3: items(); python2: iteritems()
+            try:
+                cxns.remove(node)
+            except KeyError:
+                pass
+        try:
+            del self._graph[node]
+        except KeyError:
+            pass
+
+    def is_connected(self, node1, node2):
+        """ Is node1 directly connected to node2 """
+
+        return node1 in self._graph and node2 in self._graph[node1]
+
+    def find_path(self, node1, node2, path=[]):
+        """ Find any path between node1 and node2 (may not be shortest) """
+
+        path = path + [node1]
+        if node1 == node2:
+            return path
+        if node1 not in self._graph:
+            return None
+        for node in self._graph[node1]:
+            if node not in path:
+                new_path = self.find_path(node, node2, path)
+                if new_path:
+                    return new_path
+        return None
+
+    def __str__(self):
+        return '{}({})'.format(self.__class__.__name__, dict(self._graph))
+
+
+def makeConnections():
+    global connections, cornerList
+    connections = []
+    for vert, selfCorner in enumerate(cornerList):
+
+        ctr = 0
+        i = vert - 1
+        while i >= 0 and ctr <= 15:
+            ctr += 1
+            corner = cornerList[i]
+            if corner.x == selfCorner.x and corner.y < selfCorner.y:
+                offset = selfCorner.y - corner.y
+                if offset > WALL_CHECK_OFFSET:
+                    i -= 1
+                    continue
+                else:
+
+                    if not checkWallVertical(selfCorner.x, selfCorner.y, corner.y):
+                        connections.append((vert, i))
+
+                    break
+
+            else:
+                i -= 1
+
+            #
+            # if self.index == PORTAL1_IND:
+            #     self.x = cornerList[PORTAL2_IND].x
+            #     self.y = cornerList[PORTAL2_IND].y
+            #     self.index = PORTAL2_IND
+            #     self.targetIndex = PORTAL2_IND
+            #     self.targetX = cornerList[PORTAL2_IND].x
+            #     self.targetY = cornerList[PORTAL2_IND].y
+            #     return True
+        ctr = 0
+        i = vert - 1
+        while i >= 0 and ctr <= 15:
+            ctr += 1
+            corner = cornerList[i]
+            if corner.y == selfCorner.y and corner.x < selfCorner.x:
+                offset = corner.x - selfCorner.x
+                if offset > WALL_CHECK_OFFSET:
+                    i -= 1
+                    continue
+                else:
+
+                    if not checkWallHorizontal(corner.y, corner.x, selfCorner.x):
+                        connections.append((vert, i))
+
+                    break
+            else:
+                i -= 1
+
+        ctr = 0
+        i = vert + 1
+        while i < len(cornerList) and ctr <= 15:
+            ctr += 1
+            corner = cornerList[i]
+            if corner.x == selfCorner.x and corner.y > selfCorner.y:
+                offset = corner.y - selfCorner.y
+                if offset > WALL_CHECK_OFFSET:
+                    i += 1
+                    continue
+                else:
+
+                    if not checkWallVertical(selfCorner.x, corner.y, selfCorner.y):
+
+                        connections.append((vert, i))
+
+                    break
+            else:
+                i += 1
+
+        # if self.index == PORTAL2_IND:
+        #     self.x = cornerList[PORTAL1_IND].x
+        #     self.y = cornerList[PORTAL1_IND].y
+        #     self.index = PORTAL1_IND
+        #     self.targetIndex = PORTAL1_IND
+        #     self.targetX = cornerList[PORTAL1_IND].x
+        #     self.targetY = cornerList[PORTAL1_IND].y
+        #     return True
+        ctr = 0
+        i = vert + 1
+        while i < len(cornerList) and ctr <= 15:
+            ctr += 1
+            corner = cornerList[i]
+            if corner.y == selfCorner.y and corner.x > selfCorner.x:
+                offset = selfCorner.x - corner.x
+                if offset > WALL_CHECK_OFFSET:
+                    i += 1
+                    continue
+                else:
+
+                    if not checkWallHorizontal(selfCorner.y, selfCorner.x, corner.x):
+                        connections.append((vert, i))
+                    break
+
+            else:
+                i += 1
 
 
 def checkWallVertical(sameX, belowY, aboveY):
@@ -277,7 +495,6 @@ class Player(pygame.sprite.Sprite):
         if self.index == index:
             self.posTreats = posTreats
         return posTreats, posTreatsInd
-
 
     def calcPosMoves(self, index):
 
@@ -584,12 +801,10 @@ class Player(pygame.sprite.Sprite):
 
     def Death(self):
 
-
         if pygame.sprite.collide_rect(self, enemyList[self.genomeNum]):
             return True
         else:
             return False
-
 
     def updatePosition(self, pressed):
 
@@ -997,7 +1212,6 @@ def DrawWindow(win, players, enemies, maxPlayerInd, numDead, numAlive):
         portal.Draw(WINDOW)
     for enemy in enemies:
         if enemy.playerAlive:
-
             enemy.Draw(WINDOW)
 
     textColor = players[maxPlayerInd].color
@@ -1029,18 +1243,15 @@ def DrawWindow(win, players, enemies, maxPlayerInd, numDead, numAlive):
     pygame.display.update()
 
 
-
-
 def softmax(arr):
-
     arr = np.array(arr)
 
-    arr = arr/max(arr)
+    arr = arr / max(arr)
 
     arr = np.exp(arr)
     sum = np.sum(arr)
 
-    out = arr/sum
+    out = arr / sum
 
     return out
 
@@ -1048,7 +1259,9 @@ def softmax(arr):
 def eval_genomes(genomes, config):
     nets = []  # Neural nets for all the birds
     ge = []  # The bird neat variable with all the fitness and shit
-    global gen, WINDOW, wallList, enemyList, tileMap, treatList, allTreatLists, playerList, prevInputs
+    global gen, WINDOW, wallList, enemyList, tileMap, treatList, allTreatLists, playerList, prevInputs, connections
+
+
     gen += 1
     num = 0
     res = []
@@ -1065,7 +1278,6 @@ def eval_genomes(genomes, config):
         net = neat.nn.FeedForwardNetwork.create(g, config)
         nets.append(net)
         ge.append(g)
-
 
     clock = pygame.time.Clock()
     pygame.init()
@@ -1085,7 +1297,6 @@ def eval_genomes(genomes, config):
     spawnIndex = random.randint(0, len(cornerList) - 1)
     genomeNum = 0
     for g in ge:
-
         color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
         player = Player(cornerList[spawnIndex].x, cornerList[spawnIndex].y, spawnIndex, genomeNum, color)
         genomeNum += 1
@@ -1098,13 +1309,22 @@ def eval_genomes(genomes, config):
     # enemyList.append(enemy1)
     maxPlayer = 0
     Run = True
+    makeConnections()
+    g = Graph(connections, directed=True)
+    mockConnections = [(0, 1), (0, 2), (0, 3), (1, 2), (1, 4), (1, 0), (2, 1), (2, 4), (2, 5), (2, 0), (3, 0), (3, 5), (4, 5), (4, 1), (4, 2), (5, 2), (5, 4), (5, 3)]
+    g2 = Graph(mockConnections, directed=True)
+    pretty_print = pprint.PrettyPrinter()
+    pretty_print.pprint(g2._graph)
+
+    dist, path = PerformDjikstra(g, 0, 23)
+    print(dist)
+    print(*path)
 
     while Run:
         if len(playerList) <= 0:
             Run = False
             print("run false")
             break
-
 
         # print(str(len(playerList)) + " " + str(Run))
 
@@ -1134,7 +1354,6 @@ def eval_genomes(genomes, config):
             netInputs = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
             # , 0, 0, 0, 0
 
-
             for i in range(4):
                 pseudoMoves, pseudoPosMovesInd, posTreats = player.calcPosMoves(player.index)
                 ind = pseudoPosMovesInd[i]
@@ -1144,31 +1363,28 @@ def eval_genomes(genomes, config):
                 while pseudoMoves[i] is 1:
                     dis += 1
                     if not allTreatLists[x][ind].eaten and not foundTreat:
-                        netInputs[4+i] = dis
+                        netInputs[4 + i] = dis
                         foundTreat = True
 
                     # if x == maxPlayer:
                     #     print("True " + str(i))
                     if not foundEnemy and enemyList[x].index is ind:
-                        netInputs[8+i] = dis
+                        netInputs[8 + i] = dis
                         foundEnemy = True
                     netInputs[i] += 1
                     pseudoMoves, pseudoPosMovesInd, posTreats = player.calcPosMoves(ind)
                     ind = pseudoPosMovesInd[i]
                 if not foundTreat:
-                    netInputs[4+i] = -1
+                    netInputs[4 + i] = -1
                 if not foundEnemy:
-                    netInputs[8+i] = -1
-
+                    netInputs[8 + i] = -1
 
             player.calcTreatsAround(player.index)
-
-
 
             for i, ip in enumerate(netInputs):
                 netInputs[i] *= 100
 
-            netInputs[len(netInputs)-1] = len(allTreatLists[0]) - player.score
+            netInputs[len(netInputs) - 1] = len(allTreatLists[0]) - player.score
 
             if player.moving:
                 netInputs = prevInputs[x]
@@ -1183,11 +1399,8 @@ def eval_genomes(genomes, config):
             maxCtr = 0
             for i in range(out.shape[0]):
                 if out[i] == max:
-
                     maxCtr += 1
                     maxList.append(i)
-
-
 
             # out = output
             #
@@ -1197,15 +1410,15 @@ def eval_genomes(genomes, config):
             for treat in allTreatLists[x]:
                 if not treat.eaten:
                     ctr += 1
-            if x == maxPlayer:
-                print(timeCtr[x])
-                print("Player = " + str(x))
-                print(*netInputs)
-                print(*out)
-                print(ctr)
-                print(ge[x].fitness)
-                print(" Score = " + str(player.score))
-                print("Len of eaten treats = " + str(68 - ctr))
+            # if x == maxPlayer:
+            #     print(timeCtr[x])
+            #     print("Player = " + str(x))
+            #     print(*netInputs)
+            #     print(*out)
+            #     print(ctr)
+            #     print(ge[x].fitness)
+            #     print(" Score = " + str(player.score))
+            #     print("Len of eaten treats = " + str(68 - ctr))
 
             # if max(out) > 0.5:
 
@@ -1265,7 +1478,6 @@ def eval_genomes(genomes, config):
                 numDead += 1
                 continue
 
-
             # ge[genomeNum].fitness += 0.1
             if player.Death():
                 playerList.pop(x)
@@ -1280,10 +1492,6 @@ def eval_genomes(genomes, config):
                 numDead += 1
                 continue
         clock.tick(30)
-
-
-
-
 
 
 def run(config_file):
