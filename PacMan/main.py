@@ -19,8 +19,8 @@ WINDOWHEIGHT = 825
 WALL_THICKNESS = 10
 PLAYER_SIZE = 30
 TREAT_SIZE = 10
-PLAYER_VEL = 10
-ENEMY_VEL = 3
+PLAYER_VEL = 5
+ENEMY_VEL = 5
 ENEMY_IND = 31
 PORTAL1_IND = 32
 PORTAL2_IND = 37
@@ -802,7 +802,7 @@ class Wall(pygame.sprite.Sprite):
 
 class Line(pygame.sprite.Sprite):
 
-    def __init__(self, x, y, w, h):
+    def __init__(self, x, y, w, h, color):
         # Call the parent's constructor
         pygame.sprite.Sprite.__init__(self)
 
@@ -935,7 +935,7 @@ def MakePath(path, end):
     path.reverse()
     path.append(end)
 
-    HighlightPath(path)
+    # HighlightPath(path)
     return path
 
 
@@ -972,8 +972,8 @@ def HighlightPath(path):
         j = i + 1
 
 
-# genomes, config
-def eval_genomes():
+#
+def eval_genomes(genomes, config):
     nets = []  # Neural nets for all the birds
     ge = []  # The bird neat variable with all the fitness and shit
     global gen, WINDOW, wallList, enemyList, tileMap, treatList, allTreatLists, playerList, prevInputs, connections
@@ -987,15 +987,15 @@ def eval_genomes():
     prevInputs = []
 
     # NEAT
-    # for _, g in genomes:
-    #     num += 1
-    #     g.fitness = 0
-    #     # For each Genome, create a new network
-    #     res.append(-1)
-    #     prevInputs.append(pseudoNetInputs)
-    #     net = neat.nn.FeedForwardNetwork.create(g, config)
-    #     nets.append(net)
-    #     ge.append(g)
+    for _, g in genomes:
+        num += 1
+        g.fitness = 0
+        # For each Genome, create a new network
+        res.append(-1)
+        prevInputs.append(pseudoNetInputs)
+        net = neat.nn.FeedForwardNetwork.create(g, config)
+        nets.append(net)
+        ge.append(g)
 
     clock = pygame.time.Clock()
     pygame.init()
@@ -1010,29 +1010,30 @@ def eval_genomes():
     MakePortals(tileMap)
 
     # num
-    MakeTreats(tileMap, 1)
+    MakeTreats(tileMap, num)
 
     timeCtr = []
     spawnIndex = random.randint(0, len(cornerList) - 1)
     genomeNum = 0
 
     # NEAT
-    # for g in ge:
-    #     color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
-    #     player = Player(cornerList[spawnIndex].x, cornerList[spawnIndex].y, spawnIndex, genomeNum, color)
-    #     genomeNum += 1
-    #     enemy = Enemy(cornerList[31].x, cornerList[31].y, ENEMY_IND, 1)
-    #     enemyList.append(enemy)
-    #     playerList.append(player)
-    #     timeCtr.append(0)
+    for g in ge:
+        color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
+        player = Player(cornerList[spawnIndex].x, cornerList[spawnIndex].y, spawnIndex, genomeNum, color)
+        genomeNum += 1
+        enemy = Enemy(cornerList[31].x, cornerList[31].y, ENEMY_IND, 1)
+        enemyList.append(enemy)
+        playerList.append(player)
+        timeCtr.append(0)
 
     # SinglePlayer
-    timeCtr.append(0)
-
-    enemyList.append(Enemy(cornerList[31].x, cornerList[31].y, ENEMY_IND, 1))
-    playerList.append(Player(cornerList[spawnIndex].x, cornerList[spawnIndex].y, spawnIndex, genomeNum, BLUE))
+    # timeCtr.append(0)
+    # timeCtr.append(0)
+    # enemyList.append(Enemy(cornerList[31].x, cornerList[31].y, ENEMY_IND, 1))
+    # playerList.append(Player(cornerList[spawnIndex].x, cornerList[spawnIndex].y, spawnIndex, genomeNum, BLUE))
     # enemyList.append(Enemy(cornerList[31].x, cornerList[31].y, ENEMY_IND, 1))
     # playerList.append(Player(cornerList[spawnIndex+1].x, cornerList[spawnIndex+1].y, spawnIndex+1, genomeNum+1, GREEN))
+
     maxPlayer = 0
     Run = True
     makeConnections()
@@ -1131,36 +1132,35 @@ def eval_genomes():
             netInputs[len(netInputs) - 1] = len(allTreatLists[0]) - player.score
 
             # NEAT
-            # if player.moving:
-            #     netInputs = prevInputs[x]
-            # else:
-            #     prevInputs[x] = netInputs
+            if player.moving:
+                netInputs = prevInputs[x]
+            else:
+                prevInputs[x] = netInputs
 
-            # output = nets[x].activate((*netInputs,))
+            output = nets[x].activate((*netInputs,))
 
-            # out = softmax(output)
-            # max = np.max(out)
-            # maxList = [np.argmax(out)]
-            # maxCtr = 0
-            # for i in range(out.shape[0]):
-            #     if out[i] == max:
-            #         maxCtr += 1
-            #         maxList.append(i)
-            # if maxCtr is 0:
-            #     res[x] = np.argmax(out)
-            # else:
-            #     res[x] = random.choice(maxList)
+            out = softmax(output)
+            max = np.max(out)
+            maxList = [np.argmax(out)]
+            maxCtr = 0
+            for i in range(out.shape[0]):
+                if out[i] == max:
+                    maxCtr += 1
+                    maxList.append(i)
+            if maxCtr is 0:
+                res[x] = np.argmax(out)
+            else:
+                res[x] = random.choice(maxList)
 
             # PrintBlock
-            # if x == maxPlayer:
-            #     print(timeCtr[x])
-            #     print("Player = " + str(x))
-            #     print(*netInputs)
-            #     print(*out)
-            #     print(ctr)
-            #     print(ge[x].fitness)
-            #     print(" Score = " + str(player.score))
-            #     print("Len of eaten treats = " + str(68 - ctr))
+            if x == maxPlayer:
+                print(timeCtr[x])
+                print("Player = " + str(x))
+                print(*netInputs)
+                # print(*out)
+                # print(ge[x].fitness)
+                print(" Score = " + str(player.score))
+
 
         for x, player in enumerate(playerList):
             if player.score > playerList[maxPlayer].score:
@@ -1170,38 +1170,38 @@ def eval_genomes():
         DrawWindow(WINDOW, playerList, enemyList, maxPlayer, numDead, numAlive)
 
         for x, player in enumerate(playerList):
-            # if res[x] == 0:
-            #     mvtInputs = [1, 0, 0, 0]
-            # elif res[x] == 1:
-            #     mvtInputs = [0, 1, 0, 0]
-            # elif res[x] == 2:
-            #     mvtInputs = [0, 0, 1, 0]
-            # elif res[x] == 3:
-            #     mvtInputs = [0, 0, 0, 1]
-            # else:
-            #     mvtInputs = [0, 0, 0, 0]
+            if res[x] == 0:
+                mvtInputs = [1, 0, 0, 0]
+            elif res[x] == 1:
+                mvtInputs = [0, 1, 0, 0]
+            elif res[x] == 2:
+                mvtInputs = [0, 0, 1, 0]
+            elif res[x] == 3:
+                mvtInputs = [0, 0, 0, 1]
+            else:
+                mvtInputs = [0, 0, 0, 0]
 
             # SinglePlayer inputs
-            if pressed[K_w]:
-                mvtInputs = [1, 0, 0, 0]
-            elif pressed[K_a]:
-                mvtInputs = [0, 1, 0, 0]
-            elif pressed[K_s]:
-                mvtInputs = [0, 0, 1, 0]
-            elif pressed[K_d]:
-                mvtInputs = [0, 0, 0, 1]
-            mvtInputs2 = [0, 0, 0, 0]
-            if pressed[K_UP]:
-                mvtInputs2 = [1, 0, 0, 0]
-            if pressed[K_LEFT]:
-                mvtInputs2 = [0, 1, 0, 0]
-            if pressed[K_DOWN]:
-                mvtInputs2 = [0, 0, 1, 0]
-            if pressed[K_RIGHT]:
-                mvtInputs2 = [0, 0, 0, 1]
+            # if pressed[K_w]:
+            #     mvtInputs = [1, 0, 0, 0]
+            # elif pressed[K_a]:
+            #     mvtInputs = [0, 1, 0, 0]
+            # elif pressed[K_s]:
+            #     mvtInputs = [0, 0, 1, 0]
+            # elif pressed[K_d]:
+            #     mvtInputs = [0, 0, 0, 1]
+            # mvtInputs2 = [0, 0, 0, 0]
+            # if pressed[K_UP]:
+            #     mvtInputs2 = [1, 0, 0, 0]
+            # if pressed[K_LEFT]:
+            #     mvtInputs2 = [0, 1, 0, 0]
+            # if pressed[K_DOWN]:
+            #     mvtInputs2 = [0, 0, 1, 0]
+            # if pressed[K_RIGHT]:
+            #     mvtInputs2 = [0, 0, 0, 1]
 
             player.updatePosition(mvtInputs)
-            enemyList[player.genomeNum].updatePosition(mvtInputs2)
+
             # enemy1.updatePosition(player.targetX, player.targetY)
 
             if timeCtr[x] > 60:
@@ -1215,9 +1215,9 @@ def eval_genomes():
                 enemyList[x].playerAlive = False
 
                 # NEAT
-                # ge[x].fitness -= 10
-                # nets.pop(x)
-                # ge.pop(x)
+                ge[x].fitness -= 10
+                nets.pop(x)
+                ge.pop(x)
 
                 numDead += 1
                 continue
@@ -1232,33 +1232,33 @@ def eval_genomes():
                 enemyList[x].playerAlive = False
 
                 # NEAT
-                # ge[x].fitness -= 10
-                # ge.pop(x)
-                # nets.pop(x)
+                ge[x].fitness -= 20
+                ge.pop(x)
+                nets.pop(x)
                 numDead += 1
                 continue
         timeCtr[0] = 0
         clock.tick(30)
 
 
-eval_genomes()
+# eval_genomes()
 
 # NEAT
-# def run(config_file):
-#     config = neat.config.Config(neat.DefaultGenome, neat.DefaultReproduction,
-#                                 neat.DefaultSpeciesSet, neat.DefaultStagnation,
-#                                 config_file)
-#
-#     p = neat.Population(config)
-#
-#     p.add_reporter(neat.StdOutReporter(True))
-#     stats = neat.StatisticsReporter()
-#     p.add_reporter(stats)
-#
-#     winner = p.run(eval_genomes, 50)
-#
-#
-# if __name__ == '__main__':
-#     local_dir = os.path.dirname(__file__)
-#     config_path = os.path.join(local_dir, 'config-feedforward.txt')
-#     run(config_path)
+def run(config_file):
+    config = neat.config.Config(neat.DefaultGenome, neat.DefaultReproduction,
+                                neat.DefaultSpeciesSet, neat.DefaultStagnation,
+                                config_file)
+
+    p = neat.Population(config)
+
+    p.add_reporter(neat.StdOutReporter(True))
+    stats = neat.StatisticsReporter()
+    p.add_reporter(stats)
+
+    winner = p.run(eval_genomes, 50)
+
+
+if __name__ == '__main__':
+    local_dir = os.path.dirname(__file__)
+    config_path = os.path.join(local_dir, 'config-feedforward.txt')
+    run(config_path)
