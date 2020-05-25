@@ -20,7 +20,7 @@ WALL_THICKNESS = 10
 PLAYER_SIZE = 30
 TREAT_SIZE = 10
 PLAYER_VEL = 5
-ENEMY_VEL = 5
+ENEMY_VEL = 3
 ENEMY_IND = 31
 PORTAL1_IND = 32
 PORTAL2_IND = 37
@@ -235,6 +235,7 @@ def makeConnections():
             if corner.x == selfCorner.x and corner.y < selfCorner.y:
                 offset = selfCorner.y - corner.y
                 if offset > WALL_CHECK_OFFSET:
+                    i -= 1
                     i -= 1
                     continue
                 else:
@@ -1076,8 +1077,7 @@ def eval_genomes(genomes, config):
             player.posMoves, player.posMovesInd, player.posTreats = player.newCalcPosMoves(mainGraph, player.index)
             myEnemy.posMoves, myEnemy.posMovesInd = myEnemy.newCalcPosMoves(mainGraph, myEnemy.index)
 
-            dist, path = PerformDjikstra(mainGraph, myEnemy.index, player.index)
-            myEnemy.path = MakePath(path, playerList[0].index)
+
             # myEnemy.CalcEnemyAI(mainGraph, player.targetIndex)
             # if i == 0:
             #     myEnemy.path = [31, 28, 27, 26, 27, 26, 27, 26, 27]
@@ -1085,14 +1085,16 @@ def eval_genomes(genomes, config):
             # if not myEnemy.moving and i == 0:
             #     myEnemy.CalcEnemyAI(mainGraph, player.index)
             #     i += 1
+            if gen >= 20:
+                dist, path = PerformDjikstra(mainGraph, myEnemy.index, player.index)
+                myEnemy.path = MakePath(path, playerList[x].index)
+                enemyMoveDir = myEnemy.moveOnPath()
 
-            enemyMoveDir = myEnemy.moveOnPath()
-
-            myEnemy.updatePosition(enemyMoveDir)
+                myEnemy.updatePosition(enemyMoveDir)
 
             # ge[x].fitness += 0.001
             if player.updateScore():
-                # ge[x].fitness += 5
+                ge[x].fitness += 5
                 timeCtr[x] = 0
             else:
                 timeCtr[x] += 0.1
@@ -1153,13 +1155,13 @@ def eval_genomes(genomes, config):
                 res[x] = random.choice(maxList)
 
             # PrintBlock
-            if x == maxPlayer:
-                print(timeCtr[x])
-                print("Player = " + str(x))
-                print(*netInputs)
-                # print(*out)
-                # print(ge[x].fitness)
-                print(" Score = " + str(player.score))
+            # if x == maxPlayer:
+            #     print(timeCtr[x])
+            #     print("Player = " + str(x))
+            #     print(*netInputs)
+            #     print(*out)
+            #     print(ge[x].fitness)
+            #     print(timeCtr[x])
 
 
         for x, player in enumerate(playerList):
@@ -1205,39 +1207,40 @@ def eval_genomes(genomes, config):
             # enemy1.updatePosition(player.targetX, player.targetY)
 
             if timeCtr[x] > 60:
-
+                print("Player " + str(player.genomeNum) + " Death by timeout")
                 playerList.pop(x)
                 if x < maxPlayer:
                     maxPlayer -= 1
                 if x == maxPlayer:
                     maxPlayer = 0
 
-                enemyList[x].playerAlive = False
+                enemyList[player.genomeNum].playerAlive = False
 
                 # NEAT
                 ge[x].fitness -= 10
                 nets.pop(x)
                 ge.pop(x)
-
+                timeCtr.pop(x)
                 numDead += 1
                 continue
 
             if player.Death():
-                print("Death")
+                print("Player " + str(player.genomeNum) + " Death by enemy")
                 playerList.pop(x)
                 if x < maxPlayer:
                     maxPlayer -= 1
                 if x == maxPlayer:
                     maxPlayer = 0
-                enemyList[x].playerAlive = False
+                enemyList[player.genomeNum].playerAlive = False
 
                 # NEAT
                 ge[x].fitness -= 20
+                timeCtr.pop(x)
                 ge.pop(x)
                 nets.pop(x)
                 numDead += 1
                 continue
-        timeCtr[0] = 0
+
         clock.tick(30)
 
 
