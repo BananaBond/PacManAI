@@ -1028,9 +1028,11 @@ def eval_genomes():
 
     # SinglePlayer
     timeCtr.append(0)
+
     enemyList.append(Enemy(cornerList[31].x, cornerList[31].y, ENEMY_IND, 1))
     playerList.append(Player(cornerList[spawnIndex].x, cornerList[spawnIndex].y, spawnIndex, genomeNum, BLUE))
-
+    # enemyList.append(Enemy(cornerList[31].x, cornerList[31].y, ENEMY_IND, 1))
+    # playerList.append(Player(cornerList[spawnIndex+1].x, cornerList[spawnIndex+1].y, spawnIndex+1, genomeNum+1, GREEN))
     maxPlayer = 0
     Run = True
     makeConnections()
