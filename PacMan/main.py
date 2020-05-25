@@ -757,21 +757,34 @@ class Enemy(pygame.sprite.Sprite):
         i = 1
 
         moveDir = [0, 0, 0, 0]
-        while i < len(self.path):
+        if len(self.path) == 1:
+            return moveDir
+        if i < len(self.path):
             move = self.path[i]
+            # print(str(cornerList[move].x) + str( cornerList[self.index].x) + str(cornerList[move].y) + str( cornerList[self.index].y))
+
+            print(self.index)
+            print(move)
+
             if cornerList[move].x == cornerList[self.index].x:
+
                 if cornerList[move].y < cornerList[self.index].y:
                     moveDir[0] = 1
+
                 elif cornerList[move].y > cornerList[self.index].y:
                     moveDir[2] = 1
             elif cornerList[move].y == cornerList[self.index].y:
+
                 if cornerList[move].x < cornerList[self.index].x:
                     moveDir[1] = 1
+
                 elif cornerList[move].x > cornerList[self.index].x:
                     moveDir[3] = 1
-
-            self.updatePosition(moveDir)
+        if self.x == cornerList[move].x and self.y == cornerList[move].y:
             self.path.pop(i)
+            moveDir = [0, 0, 0, 0]
+        return moveDir
+
 
 
 
@@ -1053,7 +1066,7 @@ def eval_genomes():
 
     # MakePath(path, 67)
     # print(len(lineList))
-
+    i = 0
     while Run:
         if len(playerList) <= 0:
             Run = False
@@ -1079,8 +1092,13 @@ def eval_genomes():
             myEnemy.posMoves, myEnemy.posMovesInd = myEnemy.newCalcPosMoves(mainGraph, myEnemy.index)
 
             # myEnemy.CalcEnemyAI(mainGraph, player.targetIndex)
-            myEnemy.path = [31, 28, 27, 26, 27, 26, 27, 26, 27]
-            myEnemy.moveOnPath()
+            if i == 0:
+                myEnemy.path = [31, 28, 27, 26, 27, 26, 27, 26, 27]
+                i += 1
+            enemyMoveDir = myEnemy.moveOnPath()
+            myEnemy.updatePosition(enemyMoveDir)
+            print(*myEnemy.path)
+            print(*enemyMoveDir)
 
             # ge[x].fitness += 0.001
             if player.updateScore():
