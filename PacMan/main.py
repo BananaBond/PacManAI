@@ -20,7 +20,7 @@ WALL_THICKNESS = 10
 PLAYER_SIZE = 30
 TREAT_SIZE = 10
 PLAYER_VEL = 10
-ENEMY_VEL = 5
+ENEMY_VEL = 3
 ENEMY_IND = 31
 PORTAL1_IND = 32
 PORTAL2_IND = 37
@@ -139,6 +139,7 @@ def PerformDjikstra(graph, start, end):
     ind = 0
     while len(queue) - ind is not 0:
 
+        currCorner = queue[ind]
         moves = graph._graph[currCorner]
         for move in moves:
             dis1 = DNodeList[move].dist
@@ -151,10 +152,8 @@ def PerformDjikstra(graph, start, end):
                 DNodeList[move].dist = DNodeList[currCorner].dist + 1
             if move not in queue:
                 queue.append(move)
-
-        visited.append(currCorner)
-        currCorner = queue[ind]
         ind += 1
+        visited.append(currCorner)
 
     path = []
     curr = end
@@ -445,8 +444,6 @@ class Player(pygame.sprite.Sprite):
                 self.targetIndex = self.posMovesInd[i]
                 self.smoothMove(cornerList[self.targetIndex].x, cornerList[self.targetIndex].y, i)
 
-
-
     def smoothMove(self, _targetX, _targetY, _moveDir):
         # moveDir = W A S D = 0 1 2 3
         self.targetY = _targetY
@@ -620,7 +617,6 @@ class Enemy(pygame.sprite.Sprite):
         posMoves = [-1, -1, -1, -1]
         posMovesInd = [-1, -1, -1, -1]
 
-
         for m in moves:
 
             corner = cornerList[m]
@@ -651,7 +647,6 @@ class Enemy(pygame.sprite.Sprite):
         elif index == PORTAL2_IND:
             posMoves[3] = 1
             posMovesInd[3] = PORTAL1_IND
-
 
         return posMoves, posMovesInd
 
@@ -691,7 +686,6 @@ class Enemy(pygame.sprite.Sprite):
             self.vx += self.vel
 
         return
-
 
     def updatePosition(self, pressed):
 
@@ -749,10 +743,6 @@ class Enemy(pygame.sprite.Sprite):
         if needToUpdate:
             dist, self.path = PerformDjikstra(graph, self.index, targetInd)
 
-
-
-
-
     def moveOnPath(self):
         i = 1
 
@@ -761,10 +751,6 @@ class Enemy(pygame.sprite.Sprite):
             return moveDir
         if i < len(self.path):
             move = self.path[i]
-            # print(str(cornerList[move].x) + str( cornerList[self.index].x) + str(cornerList[move].y) + str( cornerList[self.index].y))
-
-            print(self.index)
-            print(move)
 
             if cornerList[move].x == cornerList[self.index].x:
 
@@ -780,17 +766,10 @@ class Enemy(pygame.sprite.Sprite):
 
                 elif cornerList[move].x > cornerList[self.index].x:
                     moveDir[3] = 1
-        if self.x == cornerList[move].x and self.y == cornerList[move].y:
-            self.path.pop(i)
-            moveDir = [0, 0, 0, 0]
+            if self.x == cornerList[move].x and self.y == cornerList[move].y:
+                self.path.pop(i)
+                moveDir = [0, 0, 0, 0]
         return moveDir
-
-
-
-
-
-
-
 
 
 class Corner():
@@ -955,8 +934,9 @@ def MakePath(path, end):
     newPath = []
     path.reverse()
     path.append(end)
-    print(*path)
+
     HighlightPath(path)
+    return path
 
 
 def HighlightPath(path):
@@ -1060,13 +1040,15 @@ def eval_genomes():
     pretty_print = pprint.PrettyPrinter()
     # pretty_print.pprint(mainGraph._graph)
 
-    dist, path = PerformDjikstra(mainGraph, 0, 67)
+    # dist, path = PerformDjikstra(mainGraph, 2, 54)
     # print(dist)
     # print(*path)
 
     # MakePath(path, 67)
     # print(len(lineList))
     i = 0
+
+
     while Run:
         if len(playerList) <= 0:
             Run = False
@@ -1091,14 +1073,19 @@ def eval_genomes():
             player.posMoves, player.posMovesInd, player.posTreats = player.newCalcPosMoves(mainGraph, player.index)
             myEnemy.posMoves, myEnemy.posMovesInd = myEnemy.newCalcPosMoves(mainGraph, myEnemy.index)
 
+            dist, path = PerformDjikstra(mainGraph, myEnemy.index, player.index)
+            myEnemy.path = MakePath(path, playerList[0].index)
             # myEnemy.CalcEnemyAI(mainGraph, player.targetIndex)
-            if i == 0:
-                myEnemy.path = [31, 28, 27, 26, 27, 26, 27, 26, 27]
-                i += 1
+            # if i == 0:
+            #     myEnemy.path = [31, 28, 27, 26, 27, 26, 27, 26, 27]
+            #     i += 1
+            # if not myEnemy.moving and i == 0:
+            #     myEnemy.CalcEnemyAI(mainGraph, player.index)
+            #     i += 1
+
             enemyMoveDir = myEnemy.moveOnPath()
+
             myEnemy.updatePosition(enemyMoveDir)
-            print(*myEnemy.path)
-            print(*enemyMoveDir)
 
             # ge[x].fitness += 0.001
             if player.updateScore():
@@ -1222,7 +1209,7 @@ def eval_genomes():
                     maxPlayer -= 1
                 if x == maxPlayer:
                     maxPlayer = 0
-                print(len(playerList))
+
                 enemyList[x].playerAlive = False
 
                 # NEAT
